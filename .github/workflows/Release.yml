@@ -105,7 +105,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest, macos-15-intel]
+        os: [linux-latest, windows-latest, macos-latest, macos-15-intel]
         python-version: [3.12]
         script: [interactive_episode_renamer, interactive_episode_renamer_with_rich]
 
@@ -126,32 +126,40 @@ jobs:
         fi
       shell: bash
 
-    - name: Build ${{ matrix.script }} (Linux/Mac)
-      if: matrix.os != 'windows-latest'
+    - name: Determine OS name for artifacts
+      id: os_name
       run: |
-        # 为不同系统生成通用的文件名
+        # 为不同系统生成通用的名称
         if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
           OS_NAME="linux"
         elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
           OS_NAME="macos"
         elif [[ "${{ matrix.os }}" == "macos-15-intel" ]]; then
           OS_NAME="macos-intel"
+        elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+          OS_NAME="windows"
         else
           OS_NAME="${{ matrix.os }}"
         fi
-        pyinstaller --onefile --name ${{ matrix.script }}-$OS_NAME-${{ matrix.python-version }} ${{ matrix.script }}.py
+        echo "os_name=$OS_NAME" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Build ${{ matrix.script }} (Linux/Mac)
+      if: matrix.os != 'windows-latest'
+      run: |
+        pyinstaller --onefile --name ${{ matrix.script }}-${{ steps.os_name.outputs.os_name }}-${{ matrix.python-version }} ${{ matrix.script }}.py
       shell: bash
 
     - name: Build ${{ matrix.script }} (Windows)
       if: matrix.os == 'windows-latest'
       run: |
-        pyinstaller --onefile --name ${{ matrix.script }}-windows-${{ matrix.python-version }} ${{ matrix.script }}.py
+        pyinstaller --onefile --name ${{ matrix.script }}-${{ steps.os_name.outputs.os_name }}-${{ matrix.python-version }} ${{ matrix.script }}.py
       shell: pwsh
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.script }}-${{ matrix.os }}-${{ matrix.python-version }}
+        name: ${{ matrix.script }}-${{ steps.os_name.outputs.os_name }}-${{ matrix.python-version }}
         path: dist/
 
   # 创建 GitHub Release
