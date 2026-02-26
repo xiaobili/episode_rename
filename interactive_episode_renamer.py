@@ -1,11 +1,10 @@
 import requests
-import json
 import re
 from typing import Dict, List, Optional
 import os
 import pickle
 import configparser
-
+import platform
 
 class InteractiveEpisodeRenamer:
     def __init__(self, base_url: str, username: str, password: str):
@@ -21,8 +20,15 @@ class InteractiveEpisodeRenamer:
         self.password = password
         self.token = None
         self.current_path = "/"
-        self.token_file_path = os.path.join(os.environ.get("EPISODE_PATH", "/tmp"), "token")
-        self.config_file_path = os.path.join(os.environ.get("EPISODE_PATH"), "episode_renamer.conf")
+        if platform.system() == "Windows":
+            self.token_file_path = os.path.join(os.environ.get("EPISODE_PATH", "USERPROFILE"), "token")
+            self.config_file_path = os.path.join(os.environ.get("EPISODE_PATH", "USERPROFILE"), "episode_renamer.conf")
+        elif platform.system() == "Linux":
+            self.token_file_path = os.path.join(os.environ.get("EPISODE_PATH", "/tmp"), "token")
+            self.config_file_path = os.path.join(os.environ.get("EPISODE_PATH", "/tmp"), "episode_renamer.conf")
+        elif platform.system() == "Darwin":
+            self.token_file_path = os.path.join(os.environ.get("EPISODE_PATH", "/tmp"), "token")
+            self.config_file_path = os.path.join(os.environ.get("EPISODE_PATH", "/tmp"), "episode_renamer.conf")
 
     def save_config(self, base_url: str):
         """
