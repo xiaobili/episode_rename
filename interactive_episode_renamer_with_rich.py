@@ -13,7 +13,6 @@ from rich.prompt import Prompt, Confirm
 from rich.progress import Progress, SpinnerColumn, TimeElapsedColumn
 from rich import print as rprint
 import getpass
-import platform
 
 
 class InteractiveEpisodeRenamer:
@@ -31,15 +30,8 @@ class InteractiveEpisodeRenamer:
         self.token = None
         self.current_path = "/"
         self.console = Console()
-        if platform.system() == "Windows":
-            self.token_file_path = os.path.join(os.environ.get("EPISODE_PATH", "USERPROFILE"), "token")
-            self.config_file_path = os.path.join(os.environ.get("EPISODE_PATH", "USERPROFILE"), "episode_renamer.conf")
-        elif platform.system() == "Linux":
-            self.token_file_path = os.path.join(os.environ.get("EPISODE_PATH", "/tmp"), "token")
-            self.config_file_path = os.path.join(os.environ.get("EPISODE_PATH", "/tmp"), "episode_renamer.conf")
-        elif platform.system() == "Darwin":
-            self.token_file_path = os.path.join(os.environ.get("EPISODE_PATH", "/tmp"), "token")
-            self.config_file_path = os.path.join(os.environ.get("EPISODE_PATH", "/tmp"), "episode_renamer.conf")
+        self.token_file_path = os.path.join(os.environ.get("EPISODE_PATH", "/tmp"), "token")
+        self.config_file_path = os.path.join(os.environ.get("EPISODE_PATH"), "episode_renamer.conf")
 
     def save_config(self, base_url: str):
         """
