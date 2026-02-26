@@ -129,31 +129,13 @@ jobs:
     - name: Determine OS name for artifacts
       id: os_name
       run: |
-        # 为不同系统生成通用的名称
-        if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
-          OS_NAME="linux"
-        elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
-          OS_NAME="macos"
-        elif [[ "${{ matrix.os }}" == "macos-15-intel" ]]; then
-          OS_NAME="macos-intel"
-        elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-          OS_NAME="windows"
-        else
-          OS_NAME="${{ matrix.os }}"
-        fi
-        echo "os_name=$OS_NAME" >> $GITHUB_OUTPUT
-      shell: bash
-
-    - name: Build ${{ matrix.script }} (Linux/Mac)
-      if: matrix.os != 'windows-latest'
-      run: |
-        pyinstaller --onefile --name ${{ matrix.script }}-${{ steps.os_name.outputs.os_name }}-${{ matrix.python-version }} ${{ matrix.script }}.py
+        pyinstaller --onefile --name ${{ matrix.script }}-${{ matrix.os }}-${{ matrix.python-version }} ${{ matrix.script }}.py
       shell: bash
 
     - name: Build ${{ matrix.script }} (Windows)
       if: matrix.os == 'windows-latest'
       run: |
-        pyinstaller --onefile --name ${{ matrix.script }}-${{ steps.os_name.outputs.os_name }}-${{ matrix.python-version }} ${{ matrix.script }}.py
+        pyinstaller --onefile --name ${{ matrix.script }}-${{ matrix.os }}-${{ matrix.python-version }} ${{ matrix.script }}.py
       shell: pwsh
 
     - name: Upload artifacts
