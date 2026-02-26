@@ -129,13 +129,23 @@ jobs:
     - name: Build ${{ matrix.script }} (Linux/Mac)
       if: matrix.os != 'windows-latest'
       run: |
-        pyinstaller --onefile --name ${{ matrix.script }}-${{ matrix.os }}-${{ matrix.python-version }} ${{ matrix.script }}.py
+        # 为不同系统生成通用的文件名
+        if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+          OS_NAME="linux"
+        elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+          OS_NAME="macos"
+        elif [[ "${{ matrix.os }}" == "macos-15-intel" ]]; then
+          OS_NAME="macos-intel"
+        else
+          OS_NAME="${{ matrix.os }}"
+        fi
+        pyinstaller --onefile --name ${{ matrix.script }}-$OS_NAME-${{ matrix.python-version }} ${{ matrix.script }}.py
       shell: bash
 
     - name: Build ${{ matrix.script }} (Windows)
       if: matrix.os == 'windows-latest'
       run: |
-        pyinstaller --onefile --name ${{ matrix.script }}-${{ matrix.os }}-${{ matrix.python-version }} ${{ matrix.script }}.py
+        pyinstaller --onefile --name ${{ matrix.script }}-windows-${{ matrix.python-version }} ${{ matrix.script }}.py
       shell: pwsh
 
     - name: Upload artifacts
