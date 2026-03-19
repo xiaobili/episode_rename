@@ -98,43 +98,106 @@ fn render_directory_list(frame: &mut Frame, app: &App, area: Rect) {
     let icon = if app.config.use_nerdfont { "\u{f07b}" } else { "[DIR]" };
     let parent_icon = if app.config.use_nerdfont { "\u{f062}" } else { "[UP]" };
 
-    let mut items: Vec<ListItem> = Vec::new();
+    // Calculate visible height (area height minus top and bottom borders)
+    let visible_height = area.height.saturating_sub(2) as usize;
+
+    if visible_height == 0 {
+        return;
+    }
+
+    // Build all items with their content
+    let mut all_contents: Vec<String> = Vec::new();
 
     // Add parent directory option if not at root
-    if app.current_path != "/" && !app.current_path.is_empty() {
-        let prefix = if app.selected_index == 0 && matches!(app.focus, crate::app::Focus::Directory) {
-            "> "
-        } else {
-            "  "
-        };
-        items.push(ListItem::new(format!("{}{} ..", prefix, parent_icon)));
+    let has_parent = app.current_path != "/" && !app.current_path.is_empty();
+    if has_parent {
+        all_contents.push(format!("{} ..", parent_icon));
     }
 
-    // Add subdirectories
-    for (i, d) in app.directories.iter().enumerate() {
-        let index_offset = if app.current_path != "/" && !app.current_path.is_empty() { 1 } else { 0 };
-        let prefix = if app.selected_index == i + index_offset && matches!(app.focus, crate::app::Focus::Directory) {
-            "> "
-        } else {
-            "  "
-        };
-        items.push(ListItem::new(format!("{}{} {}", prefix, icon, d.name)));
+    // Add all subdirectories
+    for d in &app.directories {
+        all_contents.push(format!("{} {}", icon, d.name));
     }
 
-    let list = List::new(items)
+    let total_items = all_contents.len();
+
+    if total_items == 0 {
+        let list = List::new(vec![ListItem::new("")])
+            .block(Block::default().borders(Borders::ALL).title("目录"));
+        frame.render_widget(list, area);
+        return;
+    }
+
+    // Calculate scroll offset: simple approach where selected item appears at a fixed position
+    // When selected_index increases, scroll_offset increases to keep it visible
+    let scroll_offset = if total_items <= visible_height {
+        0
+    } else {
+        let max_scroll = total_items - visible_height;
+        // Simple: scroll_offset = selected_index (clamped to max_scroll)
+        // This makes selected item always appear at the top when scrolling
+        app.selected_index.min(max_scroll)
+    };
+
+    // Build visible items with selection highlight
+    let visible_items: Vec<ListItem> = all_contents
+        .into_iter()
+        .enumerate()
+        .skip(scroll_offset)
+        .take(visible_height)
+        .map(|(idx, content)| {
+            let actual_index = idx + scroll_offset;
+            let is_selected = actual_index == app.selected_index && matches!(app.focus, crate::app::Focus::Directory);
+            let prefix = if is_selected { "> " } else { "  " };
+            ListItem::new(format!("{}{}", prefix, content))
+        })
+        .collect();
+
+    let list = List::new(visible_items)
         .block(Block::default().borders(Borders::ALL).title("目录"));
     frame.render_widget(list, area);
 }
 
 fn render_file_list(frame: &mut Frame, app: &App, area: Rect) {
     let icon = if app.config.use_nerdfont { "\u{f1c8}" } else { "[VID]" };
+
+    // Calculate visible height (area height minus top and bottom borders)
+    let visible_height = area.height.saturating_sub(2) as usize;
+
+    if visible_height == 0 {
+        let list = List::new(vec![ListItem::new("")])
+            .block(Block::default().borders(Borders::ALL).title("文件"));
+        frame.render_widget(list, area);
+        return;
+    }
+
+    let total_items = app.files.len();
+
+    if total_items == 0 {
+        let list = List::new(vec![ListItem::new("没有文件")])
+            .block(Block::default().borders(Borders::ALL).title("文件"));
+        frame.render_widget(list, area);
+        return;
+    }
+
+    // Calculate scroll offset: simple approach where selected item appears at a fixed position
+    let scroll_offset = if total_items <= visible_height {
+        0
+    } else {
+        let max_scroll = total_items - visible_height;
+        app.selected_index.min(max_scroll)
+    };
+
     let items: Vec<ListItem> = app
         .files
         .iter()
+        .skip(scroll_offset)
+        .take(visible_height)
         .enumerate()
         .map(|(i, f)| {
+            let actual_index = i + scroll_offset;
             let prefix =
-                if i == app.selected_index && matches!(app.focus, crate::app::Focus::File) {
+                if actual_index == app.selected_index && matches!(app.focus, crate::app::Focus::File) {
                     "> "
                 } else {
                     "  "
@@ -143,6 +206,7 @@ fn render_file_list(frame: &mut Frame, app: &App, area: Rect) {
             ListItem::new(format!("{}{} {} ({})", prefix, icon, f.name, size))
         })
         .collect();
+
     let list = List::new(items)
         .block(Block::default().borders(Borders::ALL).title("文件"));
     frame.render_widget(list, area);
