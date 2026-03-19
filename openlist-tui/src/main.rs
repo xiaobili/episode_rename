@@ -151,10 +151,8 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                     .collect();
 
                 if !renames.is_empty() {
-                    app.pending_task = PendingTask::Renaming {
+                    app.pending_task = PendingTask::Loading {
                         id: 4,
-                        total: renames.len(),
-                        completed: 0,
                         message: "智能重命名...".to_string(),
                         spinner_frame: 0,
                     };
@@ -198,10 +196,8 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                     .collect();
 
                 if !renames.is_empty() {
-                    app.pending_task = PendingTask::Renaming {
+                    app.pending_task = PendingTask::Loading {
                         id: 1,
-                        total: renames.len(),
-                        completed: 0,
                         message: "正在批量重命名...".to_string(),
                         spinner_frame: 0,
                     };
@@ -243,10 +239,8 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                     .collect();
 
                 if !renames.is_empty() {
-                    app.pending_task = PendingTask::Renaming {
+                    app.pending_task = PendingTask::Loading {
                         id: 2,
-                        total: renames.len(),
-                        completed: 0,
                         message: "正在批量重命名...".to_string(),
                         spinner_frame: 0,
                     };
@@ -288,10 +282,8 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                     .collect();
 
                 if !renames.is_empty() {
-                    app.pending_task = PendingTask::Renaming {
+                    app.pending_task = PendingTask::Loading {
                         id: 3,
-                        total: renames.len(),
-                        completed: 0,
                         message: "正在批量重命名...".to_string(),
                         spinner_frame: 0,
                     };
