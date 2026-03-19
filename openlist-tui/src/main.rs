@@ -105,6 +105,10 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                             // Close login screen
                             app.show_login_screen = false;
                             app.clear_login();
+                            // Stop loading state BEFORE directory load to prevent overlay
+                            app.is_logging_in = false;
+                            app.pending_task = PendingTask::Idle;
+                            app.stop_loading();
                             // Load root directory contents
                             if let Err(e) = app.load_directory_contents().await {
                                 app.handle_api_error(e);
@@ -117,13 +121,14 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                             app.handle_api_error_from_app_error(e);
                             // Keep login screen open so user can retry
                             // Only set error flags, don't close login screen
+                            // Stop loading state
+                            app.is_logging_in = false;
+                            app.pending_task = PendingTask::Idle;
+                            app.stop_loading();
                             // Force re-render to show error popup
                             terminal.draw(|f| ui::render::render(f, app))?;
                         }
                     }
-                    app.is_logging_in = false;
-                    app.pending_task = PendingTask::Idle;
-                    app.stop_loading();
                 }
             }
         }
