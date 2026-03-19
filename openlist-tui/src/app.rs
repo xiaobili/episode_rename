@@ -116,6 +116,10 @@ pub struct App {
     pub regex_rename_results: Vec<(String, String, bool)>, // (old_name, new_name, confirmed)
     pub regex_rename_finished: bool,
     pub regex_error: Option<String>,
+    // Single file rename state
+    pub show_single_rename: bool,
+    pub single_rename_input: String,
+    pub single_rename_target: Option<FileItem>,
 }
 
 impl Default for App {
@@ -174,6 +178,10 @@ impl Default for App {
             regex_rename_results: vec![],
             regex_rename_finished: false,
             regex_error: None,
+            // Single file rename state
+            show_single_rename: false,
+            single_rename_input: String::new(),
+            single_rename_target: None,
         }
     }
 }
@@ -740,6 +748,45 @@ impl App {
 
     pub fn has_regex_preview(&self) -> bool {
         !self.regex_preview.is_empty() && self.regex_error.is_none()
+    }
+
+    // Single file rename methods
+    pub fn start_single_rename(&mut self) {
+        // Get selected file from current focus (file list)
+        if self.focus != Focus::File {
+            return;
+        }
+
+        let selected_file = self.files.get(self.selected_index);
+        if let Some(file) = selected_file {
+            self.single_rename_target = Some(file.clone());
+            self.single_rename_input = file.name.clone();
+            self.show_single_rename = true;
+        }
+    }
+
+    pub fn submit_single_rename(&mut self) {
+        // Single rename is executed immediately via API
+        // The actual API call is handled in main.rs
+        // Here we just set a flag to indicate submission
+        if self.single_rename_target.is_some() && !self.single_rename_input.is_empty() {
+            // Close the dialog - main.rs will handle the API call
+            self.show_single_rename = false;
+        }
+    }
+
+    pub fn cancel_single_rename(&mut self) {
+        self.show_single_rename = false;
+        self.single_rename_input.clear();
+        self.single_rename_target = None;
+    }
+
+    pub fn delete_last_single_rename_char(&mut self) {
+        self.single_rename_input.pop();
+    }
+
+    pub fn get_single_rename_target(&self) -> Option<&FileItem> {
+        self.single_rename_target.as_ref()
     }
 }
 

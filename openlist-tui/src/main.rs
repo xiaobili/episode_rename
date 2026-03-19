@@ -474,6 +474,52 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                     continue;
                 }
 
+                // Handle single file rename popup input
+                if app.show_single_rename {
+                    match key.code {
+                        KeyCode::Esc => {
+                            // Cancel single rename
+                            app.cancel_single_rename();
+                        }
+                        KeyCode::Enter => {
+                            // Submit single rename - execute immediately via API
+                            if app.single_rename_target.is_some() {
+                                let new_name = app.single_rename_input.clone();
+                                let current_path = app.current_path.clone();
+
+                                // Execute the rename API call
+                                match app.client.rename_single(&current_path, &new_name).await {
+                                    Ok(_) => {
+                                        // Success - close dialog and reload directory
+                                        app.cancel_single_rename();
+                                        if let Err(e) = app.load_directory_contents().await {
+                                            app.error_message = Some(format!("加载目录失败：{}", e));
+                                            app.show_error_popup = true;
+                                        }
+                                    }
+                                    Err(e) => {
+                                        // Error - show error popup
+                                        app.error_message = Some(format!("重命名失败：{}", e));
+                                        app.show_error_popup = true;
+                                        app.show_single_rename = false;
+                                    }
+                                }
+                            }
+                        }
+                        KeyCode::Backspace => {
+                            app.delete_last_single_rename_char();
+                        }
+                        KeyCode::Char(c) => {
+                            // Text input for new filename
+                            if app.single_rename_input.len() < 200 {
+                                app.single_rename_input.push(c);
+                            }
+                        }
+                        _ => {}
+                    }
+                    continue;
+                }
+
                 // Normal mode key bindings
                 match key.code {
                     KeyCode::Char('q') => return Ok(()),
@@ -489,6 +535,10 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                     KeyCode::Char('r') => {
                         // Open rename popup
                         app.open_rename_popup();
+                    }
+                    KeyCode::Char('N') => {
+                        // Single file rename (Shift+n)
+                        app.start_single_rename();
                     }
                     KeyCode::Up | KeyCode::Char('k') => app.select_previous(),
                     KeyCode::Down | KeyCode::Char('j') => app.select_next(),

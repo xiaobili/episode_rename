@@ -39,6 +39,9 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     if app.show_regex_input {
         render_regex_rename_popup(frame, app);
     }
+    if app.show_single_rename {
+        render_single_rename_popup(frame, app);
+    }
 }
 
 fn render_status_bar(frame: &mut Frame, app: &App, area: Rect) {
@@ -708,4 +711,58 @@ fn render_regex_rename_popup(frame: &mut Frame, app: &App) {
         .style(Style::default().fg(Color::Gray))
         .block(Block::default().borders(Borders::NONE));
     frame.render_widget(help, popup[popup.len() - 1]);
+}
+
+fn render_single_rename_popup(frame: &mut Frame, app: &App) {
+    let area = centered_rect(60, 45, frame.area());
+    frame.render_widget(Clear, area);
+
+    let popup = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(2)
+        .constraints([
+            Constraint::Length(3),  // Title
+            Constraint::Length(1),  // Spacer
+            Constraint::Length(3),  // Current file name
+            Constraint::Length(1),  // Spacer
+            Constraint::Length(3),  // Input field
+            Constraint::Length(1),  // Spacer
+            Constraint::Length(2),  // Help text
+        ])
+        .split(area);
+
+    // Title
+    let title = Paragraph::new("单文件重命名")
+        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .block(Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan)));
+    frame.render_widget(title, popup[0]);
+
+    // Current file name
+    let current_file = app.get_single_rename_target()
+        .map(|f| f.name.as_str())
+        .unwrap_or("无文件");
+    let file_label = Paragraph::new(format!("原文件名：{}", current_file))
+        .style(Style::default().fg(Color::White))
+        .block(Block::default()
+            .borders(Borders::ALL)
+            .title("当前文件"));
+    frame.render_widget(file_label, popup[2]);
+
+    // Input field for new name
+    let input_style = Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD);
+    let input = Paragraph::new(app.single_rename_input.as_str())
+        .style(input_style)
+        .block(Block::default()
+            .borders(Borders::ALL)
+            .title("新文件名")
+            .border_style(Style::default().fg(Color::Green)));
+    frame.render_widget(input, popup[4]);
+
+    // Help text
+    let help = Paragraph::new("Enter 确认 | Esc 取消")
+        .style(Style::default().fg(Color::Gray))
+        .block(Block::default().borders(Borders::NONE));
+    frame.render_widget(help, popup[6]);
 }
