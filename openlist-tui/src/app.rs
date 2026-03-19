@@ -218,7 +218,10 @@ impl App {
 
     pub fn select_next(&mut self) {
         let total = match self.focus {
-            Focus::Directory => self.directories.len(),
+            Focus::Directory => {
+                // Add 1 for ".." option when not at root
+                self.directories.len() + if self.current_path != "/" && !self.current_path.is_empty() { 1 } else { 0 }
+            },
             Focus::File => self.files.len(),
             Focus::Input => 0,
         };
@@ -229,7 +232,10 @@ impl App {
 
     pub fn select_previous(&mut self) {
         let total = match self.focus {
-            Focus::Directory => self.directories.len(),
+            Focus::Directory => {
+                // Add 1 for ".." option when not at root
+                self.directories.len() + if self.current_path != "/" && !self.current_path.is_empty() { 1 } else { 0 }
+            },
             Focus::File => self.files.len(),
             Focus::Input => 0,
         };
