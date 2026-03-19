@@ -348,7 +348,7 @@ fn render_rename_mode_popup(frame: &mut Frame, app: &App) {
         .constraints([
             Constraint::Length(3),  // Title
             Constraint::Length(1),  // Spacer
-            Constraint::Length(4),  // Mode selection (4 options)
+            Constraint::Length(4),  // Mode selection (2 visible options)
             Constraint::Length(1),  // Spacer
             Constraint::Min(5),     // Preview area
             Constraint::Length(2),  // Help text
@@ -363,9 +363,15 @@ fn render_rename_mode_popup(frame: &mut Frame, app: &App) {
             .border_style(Style::default().fg(Color::Cyan)));
     frame.render_widget(title, popup[0]);
 
-    // Mode selection options
+    // Mode selection options - find selected index
     let modes = RenameMode::all();
-    let mode_items: Vec<ListItem> = modes.iter().enumerate().map(|(_i, mode)| {
+    let selected_idx = modes.iter().position(|&m| m == app.selected_rename_mode).unwrap_or(0);
+
+    // Only show 2 items at a time: selected and one neighbor
+    let start_idx = if selected_idx == 0 { 0 } else { selected_idx - 1 };
+    let end_idx = std::cmp::min(start_idx + 2, modes.len());
+
+    let mode_items: Vec<ListItem> = modes.iter().enumerate().skip(start_idx).take(end_idx - start_idx).map(|(_i, mode)| {
         let prefix = if *mode == app.selected_rename_mode { "> " } else { "  " };
         let style = if *mode == app.selected_rename_mode {
             Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
@@ -381,7 +387,7 @@ fn render_rename_mode_popup(frame: &mut Frame, app: &App) {
     let mode_list = List::new(mode_items)
         .block(Block::default()
             .borders(Borders::ALL)
-            .title("模式"));
+            .title(format!("模式 (↑/↓ 选择，Enter 确认) - {}/{}", selected_idx + 1, modes.len())));
     frame.render_widget(mode_list, popup[2]);
 
     // Preview area
