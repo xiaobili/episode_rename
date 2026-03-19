@@ -67,6 +67,8 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                     // Stop loading state
                     app.pending_task = PendingTask::Idle;
                     app.stop_loading();
+                    // Force re-render to update UI after state change
+                    terminal.draw(|f| ui::render::render(f, app))?;
                 }
                 TaskResult::BatchRename(_id, result) => {
                     match result {
@@ -83,6 +85,8 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                     // Stop loading state
                     app.pending_task = PendingTask::Idle;
                     app.stop_loading();
+                    // Force re-render to update UI after state change
+                    terminal.draw(|f| ui::render::render(f, app))?;
                 }
                 TaskResult::Login(_id, result) => {
                     match result {
@@ -105,12 +109,16 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                             if let Err(e) = app.load_directory_contents().await {
                                 app.handle_api_error(e);
                             }
+                            // Force re-render to update UI after state change
+                            terminal.draw(|f| ui::render::render(f, app))?;
                         }
                         Err(e) => {
                             // Login failed - show error but keep login screen open for retry
                             app.handle_api_error_from_app_error(e);
                             // Keep login screen open so user can retry
                             // Only set error flags, don't close login screen
+                            // Force re-render to show error popup
+                            terminal.draw(|f| ui::render::render(f, app))?;
                         }
                     }
                     app.is_logging_in = false;
