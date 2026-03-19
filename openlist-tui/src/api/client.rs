@@ -109,10 +109,16 @@ impl OpenListClient {
         let api: ApiResponse<serde_json::Value> = self.handle_response(resp).await?;
         let content = api
             .data
-            .and_then(|d| d.get("content").cloned())
-            .unwrap_or_default();
-        serde_json::from_value(content)
-            .map_err(|e| AppError::ApiError(format!("解析失败：{}", e)))
+            .and_then(|d| d.get("content").cloned());
+
+        // Handle null or missing content as empty array
+        match content {
+            Some(value) if !value.is_null() => {
+                serde_json::from_value(value)
+                    .map_err(|e| AppError::ApiError(format!("解析失败：{}", e)))
+            }
+            _ => Ok(Vec::new()),
+        }
     }
 
     pub async fn batch_rename(&self, src_dir: &str, renames: Vec<RenameObject>) -> Result<()> {
