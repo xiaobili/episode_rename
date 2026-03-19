@@ -92,8 +92,19 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                             app.current_user = Some(app.username_input.clone());
                             app.client = crate::api::client::OpenListClient::new(
                                 app.config.base_url.clone(),
-                                Some(token)
+                                Some(token.clone())
                             );
+                            // Save token to config
+                            app.config.token = Some(token);
+                            app.config.username = Some(app.username_input.clone());
+                            let _ = app.config.save();
+                            // Close login screen
+                            app.show_login_screen = false;
+                            app.clear_login();
+                            // Load root directory contents
+                            if let Err(e) = app.load_directory_contents().await {
+                                app.handle_api_error(e);
+                            }
                         }
                         Err(e) => {
                             app.handle_api_error_from_app_error(e);
