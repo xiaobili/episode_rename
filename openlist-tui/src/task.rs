@@ -8,6 +8,7 @@ pub enum TaskResult {
     ListDirectory(TaskId, Result<Vec<FileItem>, AppError>),
     BatchRename(TaskId, Result<(), AppError>),
     Login(TaskId, Result<String, AppError>),
+    AutoLogin(TaskId, Result<crate::api::types::UserInfo, AppError>),
 }
 
 pub enum PendingTask {

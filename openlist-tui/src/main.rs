@@ -49,6 +49,31 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
     let ui_refresh_interval = Duration::from_millis(50);
     let mut last_refresh = std::time::Instant::now();
 
+    // Auto-login if token exists
+    if let Some(token) = &app.config.token {
+        if !token.is_empty() {
+            // Start auto-login
+            app.is_logging_in = true;
+            app.pending_task = PendingTask::Loading {
+                id: 5,
+                message: "自动登录中...".to_string(),
+                spinner_frame: 0,
+            };
+
+            // Clone data for async task
+            let base_url = app.config.base_url.clone();
+            let token = token.clone();
+            let tx = app.task_channel.tx.clone();
+
+            // Spawn async task to verify token
+            tokio::spawn(async move {
+                let client = crate::api::client::OpenListClient::new(base_url, Some(token));
+                let result = client.get_current_user().await;
+                let _ = tx.send(TaskResult::AutoLogin(5, result));
+            });
+        }
+    }
+
     loop {
         // Check for completed async tasks (non-blocking)
         if let Ok(task_result) = app.task_channel.rx.try_recv() {
@@ -127,6 +152,47 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                             app.pending_task = PendingTask::Idle;
                             app.stop_loading();
                             // Force re-render to show error popup
+                            terminal.draw(|f| ui::render::render(f, app))?;
+                            last_refresh = std::time::Instant::now();
+                        }
+                    }
+                }
+                TaskResult::AutoLogin(_id, result) => {
+                    match result {
+                        Ok(user_info) => {
+                            // Auto-login successful - token is valid
+                            app.is_authenticated = true;
+                            app.current_user = Some(user_info.nick.clone().unwrap_or(user_info.username.clone()));
+                            app.client = crate::api::client::OpenListClient::new(
+                                app.config.base_url.clone(),
+                                app.config.token.clone()
+                            );
+                            // Stop loading state
+                            app.is_logging_in = false;
+                            app.pending_task = PendingTask::Idle;
+                            app.stop_loading();
+                            // Load root directory contents
+                            if let Err(e) = app.load_directory_contents().await {
+                                app.handle_api_error(e);
+                            }
+                            // Force re-render to update UI after state change
+                            terminal.draw(|f| ui::render::render(f, app))?;
+                            last_refresh = std::time::Instant::now();
+                        }
+                        Err(e) => {
+                            // Auto-login failed - token may be expired or invalid
+                            // Clear invalid token and show login screen
+                            app.config.token = None;
+                            app.config.username = None;
+                            let _ = app.config.save();
+                            app.show_login_screen = true;
+                            // Stop loading state
+                            app.is_logging_in = false;
+                            app.pending_task = PendingTask::Idle;
+                            app.stop_loading();
+                            // Show error message
+                            app.handle_api_error_from_app_error(e);
+                            // Force re-render
                             terminal.draw(|f| ui::render::render(f, app))?;
                             last_refresh = std::time::Instant::now();
                         }
