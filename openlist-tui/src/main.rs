@@ -151,9 +151,7 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                     .collect();
 
                 if !renames.is_empty() {
-                    // Set loading state with progress
-                    app.start_loading("正在批量重命名...".to_string());
-                    app.update_progress(0, renames.len());
+                    // Set loading state and spawn async task
                     app.pending_task = PendingTask::Renaming {
                         id: 1,
                         total: renames.len(),
@@ -162,33 +160,29 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                         spinner_frame: 0,
                     };
 
-                    // Execute batch rename
-                    match app.client.batch_rename(&app.current_path, renames).await {
-                        Ok(_) => {
-                            // Success - reload directory to show updated names
-                            if let Err(e) = app.load_directory_contents().await {
-                                app.handle_api_error(e);
-                            }
-                        }
-                        Err(e) => {
-                            // Error - use centralized error handler
-                            app.handle_api_error_from_app_error(e);
-                        }
-                    }
-                    // Stop loading
-                    app.stop_loading();
-                    app.pending_task = PendingTask::Idle;
+                    // Clone data for async task
+                    let tx = app.task_channel.tx.clone();
+                    let client = app.client.clone();
+                    let current_path = app.current_path.clone();
+
+                    // Spawn async task
+                    tokio::spawn(async move {
+                        let result = client.batch_rename(&current_path, renames).await;
+                        let _ = tx.send(TaskResult::BatchRename(1, result));
+                    });
                 } else {
                     // No renames to execute, just reload directory
                     if let Err(e) = app.load_directory_contents().await {
                         app.handle_api_error(e);
                     }
+                    app.manual_rename_finished = false;
                 }
             } else {
                 // No results (all skipped), just reload directory
                 if let Err(e) = app.load_directory_contents().await {
                     app.handle_api_error(e);
                 }
+                app.manual_rename_finished = false;
             }
         }
 
@@ -210,9 +204,7 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                     .collect();
 
                 if !renames.is_empty() {
-                    // Set loading state with progress
-                    app.start_loading("正在批量重命名...".to_string());
-                    app.update_progress(0, renames.len());
+                    // Set loading state and spawn async task
                     app.pending_task = PendingTask::Renaming {
                         id: 2,
                         total: renames.len(),
@@ -221,33 +213,29 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                         spinner_frame: 0,
                     };
 
-                    // Execute batch rename
-                    match app.client.batch_rename(&app.current_path, renames).await {
-                        Ok(_) => {
-                            // Success - reload directory to show updated names
-                            if let Err(e) = app.load_directory_contents().await {
-                                app.handle_api_error(e);
-                            }
-                        }
-                        Err(e) => {
-                            // Error - use centralized error handler
-                            app.handle_api_error_from_app_error(e);
-                        }
-                    }
-                    // Stop loading
-                    app.stop_loading();
-                    app.pending_task = PendingTask::Idle;
+                    // Clone data for async task
+                    let tx = app.task_channel.tx.clone();
+                    let client = app.client.clone();
+                    let current_path = app.current_path.clone();
+
+                    // Spawn async task
+                    tokio::spawn(async move {
+                        let result = client.batch_rename(&current_path, renames).await;
+                        let _ = tx.send(TaskResult::BatchRename(2, result));
+                    });
                 } else {
                     // No renames to execute, just reload directory
                     if let Err(e) = app.load_directory_contents().await {
                         app.handle_api_error(e);
                     }
+                    app.unified_rename_finished = false;
                 }
             } else {
                 // No results, just reload directory
                 if let Err(e) = app.load_directory_contents().await {
                     app.handle_api_error(e);
                 }
+                app.unified_rename_finished = false;
             }
         }
 
@@ -269,9 +257,7 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                     .collect();
 
                 if !renames.is_empty() {
-                    // Set loading state with progress
-                    app.start_loading("正在批量重命名...".to_string());
-                    app.update_progress(0, renames.len());
+                    // Set loading state and spawn async task
                     app.pending_task = PendingTask::Renaming {
                         id: 3,
                         total: renames.len(),
@@ -280,33 +266,29 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                         spinner_frame: 0,
                     };
 
-                    // Execute batch rename
-                    match app.client.batch_rename(&app.current_path, renames).await {
-                        Ok(_) => {
-                            // Success - reload directory to show updated names
-                            if let Err(e) = app.load_directory_contents().await {
-                                app.handle_api_error(e);
-                            }
-                        }
-                        Err(e) => {
-                            // Error - use centralized error handler
-                            app.handle_api_error_from_app_error(e);
-                        }
-                    }
-                    // Stop loading
-                    app.stop_loading();
-                    app.pending_task = PendingTask::Idle;
+                    // Clone data for async task
+                    let tx = app.task_channel.tx.clone();
+                    let client = app.client.clone();
+                    let current_path = app.current_path.clone();
+
+                    // Spawn async task
+                    tokio::spawn(async move {
+                        let result = client.batch_rename(&current_path, renames).await;
+                        let _ = tx.send(TaskResult::BatchRename(3, result));
+                    });
                 } else {
                     // No renames to execute, just reload directory
                     if let Err(e) = app.load_directory_contents().await {
                         app.handle_api_error(e);
                     }
+                    app.regex_rename_finished = false;
                 }
             } else {
                 // No results, just reload directory
                 if let Err(e) = app.load_directory_contents().await {
                     app.handle_api_error(e);
                 }
+                app.regex_rename_finished = false;
             }
         }
 
