@@ -28,6 +28,7 @@ pub struct App {
     pub is_authenticated: bool,
     pub current_user: Option<String>,
     pub current_path: String,
+    pub path_history: Vec<String>,
     pub directories: Vec<FileItem>,
     pub files: Vec<FileItem>,
     pub selected_index: usize,
@@ -56,6 +57,7 @@ impl Default for App {
             is_authenticated: false,
             current_user: None,
             current_path: "/".into(),
+            path_history: vec![],
             directories: vec![],
             files: vec![],
             selected_index: 0,
@@ -173,4 +175,78 @@ impl App {
     pub fn delete_last_password_char(&mut self) {
         self.password_input.pop();
     }
+
+    // Navigation methods
+    pub fn enter_directory(&mut self, dir_name: &str) {
+        // Save current path to history
+        self.path_history.push(self.current_path.clone());
+
+        // Build new path
+        if self.current_path == "/" {
+            self.current_path = format!("/{}", dir_name);
+        } else {
+            self.current_path = format!("{}/{}", self.current_path, dir_name);
+        }
+
+        // Reset selection when entering directory
+        self.selected_index = 0;
+        self.focus = Focus::Directory;
+    }
+
+    pub fn go_parent(&mut self) {
+        if self.current_path == "/" || self.current_path.is_empty() {
+            return;
+        }
+
+        // Save current path to history before navigating
+        self.path_history.push(self.current_path.clone());
+
+        // Remove last component from path
+        // Split by '/' and filter out empty strings to get actual path components
+        let parts: Vec<&str> = self.current_path.split('/').filter(|s| !s.is_empty()).collect();
+
+        if parts.len() <= 1 {
+            self.current_path = "/".to_string();
+        } else {
+            // Rebuild path without the last component
+            self.current_path = format!("/{}", parts[..parts.len() - 1].join("/"));
+        }
+
+        // Reset selection when navigating
+        self.selected_index = 0;
+        self.focus = Focus::Directory;
+    }
+
+    pub async fn load_directory_contents(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let items = self.client.list_directory(&self.current_path).await?;
+
+        // Separate directories and files
+        self.directories.clear();
+        self.files.clear();
+
+        for item in items {
+            if item.is_dir {
+                self.directories.push(item);
+            } else {
+                // Filter to show only video files
+                if is_video_file(&item.name) {
+                    self.files.push(item);
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+// Helper function to check if a file is a video file
+fn is_video_file(filename: &str) -> bool {
+    let video_extensions = [
+        "mp4", "mkv", "avi", "mov", "wmv", "flv", "webm",
+        "m4v", "mpeg", "mpg", "3gp", "rmvb", "rm",
+    ];
+
+    filename.rsplit('.').next().map(|ext| {
+        video_extensions.iter().any(|&v| v.eq_ignore_ascii_case(ext))
+    }).unwrap_or(false)
 }

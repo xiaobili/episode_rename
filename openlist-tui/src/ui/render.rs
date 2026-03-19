@@ -47,7 +47,21 @@ fn render_status_bar(frame: &mut Frame, app: &App, area: Rect) {
 }
 
 fn render_path_bar(frame: &mut Frame, app: &App, area: Rect) {
-    let path = Paragraph::new(format!(" 路径：{}", app.current_path))
+    // Build path display with parent indicator if not at root
+    let path_display = if app.current_path == "/" || app.current_path.is_empty() {
+        "/".to_string()
+    } else {
+        // Add parent directory indicator
+        format!("{}", app.current_path)
+    };
+
+    let path_text = if app.current_path != "/" && !app.current_path.is_empty() {
+        format!(" 路径：{} (按 h 或 ← 返回上级)", path_display)
+    } else {
+        format!(" 路径：{}", path_display)
+    };
+
+    let path = Paragraph::new(path_text)
         .style(Style::default().fg(Color::Yellow));
     frame.render_widget(path, area);
 }
@@ -63,21 +77,31 @@ fn render_main_content(frame: &mut Frame, app: &App, area: Rect) {
 
 fn render_directory_list(frame: &mut Frame, app: &App, area: Rect) {
     let icon = if app.config.use_nerdfont { "\u{f07b}" } else { "[DIR]" };
-    let items: Vec<ListItem> = app
-        .directories
-        .iter()
-        .enumerate()
-        .map(|(i, d)| {
-            let prefix = if i == app.selected_index
-                && matches!(app.focus, crate::app::Focus::Directory)
-            {
-                "> "
-            } else {
-                "  "
-            };
-            ListItem::new(format!("{}{} {}", prefix, icon, d.name))
-        })
-        .collect();
+    let parent_icon = if app.config.use_nerdfont { "\u{f062}" } else { "[UP]" };
+
+    let mut items: Vec<ListItem> = Vec::new();
+
+    // Add parent directory option if not at root
+    if app.current_path != "/" && !app.current_path.is_empty() {
+        let prefix = if app.selected_index == 0 && matches!(app.focus, crate::app::Focus::Directory) {
+            "> "
+        } else {
+            "  "
+        };
+        items.push(ListItem::new(format!("{}{} ..", prefix, parent_icon)));
+    }
+
+    // Add subdirectories
+    for (i, d) in app.directories.iter().enumerate() {
+        let index_offset = if app.current_path != "/" && !app.current_path.is_empty() { 1 } else { 0 };
+        let prefix = if app.selected_index == i + index_offset && matches!(app.focus, crate::app::Focus::Directory) {
+            "> "
+        } else {
+            "  "
+        };
+        items.push(ListItem::new(format!("{}{} {}", prefix, icon, d.name)));
+    }
+
     let list = List::new(items)
         .block(Block::default().borders(Borders::ALL).title("目录"));
     frame.render_widget(list, area);

@@ -18,8 +18,10 @@ use ratatui::Terminal;
 use std::io;
 use crate::app::App;
 use crate::config::Config;
+use crate::app::Focus;
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let config = Config::load()?;
     let mut app = App::with_config(config);
 
@@ -29,7 +31,7 @@ fn main() -> Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let result = run_app(&mut terminal, &mut app);
+    let result = run_app(&mut terminal, &mut app).await;
 
     disable_raw_mode()?;
     execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
@@ -38,7 +40,7 @@ fn main() -> Result<()> {
     result
 }
 
-fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> {
+async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> {
     loop {
         terminal.draw(|f| ui::render::render(f, app))?;
         if let Event::Key(key) = event::read()? {
@@ -126,7 +128,45 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                     KeyCode::Down | KeyCode::Char('j') => app.select_next(),
                     KeyCode::Tab => app.toggle_focus(),
                     KeyCode::Enter => {
-                        // TODO: 进入目录
+                        // Enter directory on Enter key
+                        if app.focus == Focus::Directory {
+                            // Check if parent directory option is selected (index 0 when not at root)
+                            if app.current_path != "/" && !app.current_path.is_empty() && app.selected_index == 0 {
+                                // Go to parent directory
+                                app.go_parent();
+                                // Load parent directory contents
+                                if let Err(e) = app.load_directory_contents().await {
+                                    app.error_message = Some(format!("加载目录失败：{}", e));
+                                    app.show_error_popup = true;
+                                }
+                            } else if !app.directories.is_empty() {
+                                // Calculate the actual directory index (accounting for parent option)
+                                let dir_index = if app.current_path != "/" && !app.current_path.is_empty() {
+                                    app.selected_index.saturating_sub(1)
+                                } else {
+                                    app.selected_index
+                                };
+                                // Clone the directory name to avoid borrow checker issues
+                                let dir_name = app.directories.get(dir_index).map(|d| d.name.clone());
+                                if let Some(dir_name) = dir_name {
+                                    app.enter_directory(&dir_name);
+                                    // Load directory contents
+                                    if let Err(e) = app.load_directory_contents().await {
+                                        app.error_message = Some(format!("加载目录失败：{}", e));
+                                        app.show_error_popup = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    KeyCode::Left | KeyCode::Char('h') => {
+                        // Go to parent directory on Left arrow or 'h' key
+                        app.go_parent();
+                        // Load parent directory contents
+                        if let Err(e) = app.load_directory_contents().await {
+                            app.error_message = Some(format!("加载目录失败：{}", e));
+                            app.show_error_popup = true;
+                        }
                     }
                     _ => {}
                 }
