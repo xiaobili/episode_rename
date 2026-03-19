@@ -140,11 +140,12 @@ fn render_directory_list(frame: &mut Frame, app: &App, area: Rect) {
     };
 
     // Build visible items with selection highlight
+    // Note: skip() first, then enumerate() so idx starts from 0
     let visible_items: Vec<ListItem> = all_contents
         .into_iter()
-        .enumerate()
         .skip(scroll_offset)
         .take(visible_height)
+        .enumerate()
         .map(|(idx, content)| {
             let actual_index = idx + scroll_offset;
             let is_selected = actual_index == app.selected_index && matches!(app.focus, crate::app::Focus::Directory);
