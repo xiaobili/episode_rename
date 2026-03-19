@@ -20,6 +20,7 @@ use crate::app::App;
 use crate::config::Config;
 use crate::app::Focus;
 use crate::app::UnifiedFocus;
+use crate::app::RegexFocus;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -99,6 +100,55 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
             // Take the results and clear the flag
             let results = app.take_unified_rename_results();
             app.unified_rename_finished = false;
+
+            if !results.is_empty() {
+                // Build rename objects for batch rename API
+                use crate::api::types::RenameObject;
+                let renames: Vec<RenameObject> = results.iter()
+                    .filter(|(_, _, confirmed)| *confirmed)
+                    .map(|(src_name, new_name, _)| RenameObject {
+                        src_name: src_name.clone(),
+                        new_name: new_name.clone(),
+                    })
+                    .collect();
+
+                if !renames.is_empty() {
+                    // Execute batch rename
+                    match app.client.batch_rename(&app.current_path, renames).await {
+                        Ok(_) => {
+                            // Success - reload directory to show updated names
+                            if let Err(e) = app.load_directory_contents().await {
+                                app.error_message = Some(format!("加载目录失败：{}", e));
+                                app.show_error_popup = true;
+                            }
+                        }
+                        Err(e) => {
+                            // Error - show error popup
+                            app.error_message = Some(format!("批量重命名失败：{}", e));
+                            app.show_error_popup = true;
+                        }
+                    }
+                } else {
+                    // No renames to execute, just reload directory
+                    if let Err(e) = app.load_directory_contents().await {
+                        app.error_message = Some(format!("加载目录失败：{}", e));
+                        app.show_error_popup = true;
+                    }
+                }
+            } else {
+                // No results, just reload directory
+                if let Err(e) = app.load_directory_contents().await {
+                    app.error_message = Some(format!("加载目录失败：{}", e));
+                    app.show_error_popup = true;
+                }
+            }
+        }
+
+        // Check if regex rename finished and execute batch rename
+        if app.regex_rename_finished {
+            // Take the results and clear the flag
+            let results = app.take_regex_rename_results();
+            app.regex_rename_finished = false;
 
             if !results.is_empty() {
                 // Build rename objects for batch rename API
@@ -231,8 +281,13 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                                     app.close_rename_popup();
                                     app.start_unified_mode();
                                 }
+                                crate::app::RenameMode::Regex => {
+                                    // Close mode popup and start regex rename
+                                    app.close_rename_popup();
+                                    app.start_regex_mode();
+                                }
                                 _ => {
-                                    // For other modes (Smart, Regex), just close popup
+                                    // For other modes (Smart), just close popup
                                     // Smart rename would execute here in future implementation
                                     app.close_rename_popup();
                                 }
@@ -350,6 +405,66 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                                     if app.unified_pattern.len() < 100 {
                                         app.unified_pattern.push(c);
                                         app.generate_unified_preview();
+                                    }
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                    continue;
+                }
+
+                // Handle regex rename popup input
+                if app.show_regex_input {
+                    match key.code {
+                        KeyCode::Esc => {
+                            // Cancel regex rename
+                            app.cancel_regex();
+                        }
+                        KeyCode::Enter => {
+                            if app.has_regex_preview() {
+                                // Preview already generated - execute rename
+                                app.execute_regex_rename();
+                            } else {
+                                // Generate preview (validates regex)
+                                app.submit_regex();
+                            }
+                        }
+                        KeyCode::Tab => {
+                            // Switch between find/replace fields
+                            app.toggle_regex_focus();
+                        }
+                        KeyCode::Backspace => {
+                            // Delete last character from current field
+                            match app.regex_focus {
+                                RegexFocus::Find => {
+                                    app.regex_find.pop();
+                                }
+                                RegexFocus::Replace => {
+                                    app.regex_replace.pop();
+                                }
+                            }
+                            // Clear preview when editing
+                            app.regex_preview.clear();
+                            app.regex_error = None;
+                        }
+                        KeyCode::Char(c) => {
+                            // Text input for current field
+                            match app.regex_focus {
+                                RegexFocus::Find => {
+                                    if app.regex_find.len() < 100 {
+                                        app.regex_find.push(c);
+                                        // Clear preview when editing
+                                        app.regex_preview.clear();
+                                        app.regex_error = None;
+                                    }
+                                }
+                                RegexFocus::Replace => {
+                                    if app.regex_replace.len() < 100 {
+                                        app.regex_replace.push(c);
+                                        // Clear preview when editing
+                                        app.regex_preview.clear();
+                                        app.regex_error = None;
                                     }
                                 }
                             }

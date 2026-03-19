@@ -5,7 +5,7 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame,
 };
-use crate::app::{App, LoginFocus, RenameMode, UnifiedFocus};
+use crate::app::{App, LoginFocus, RenameMode, UnifiedFocus, RegexFocus};
 
 pub fn render(frame: &mut Frame, app: &mut App) {
     let chunks = Layout::default()
@@ -35,6 +35,9 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     }
     if app.show_unified_input {
         render_unified_naming_popup(frame, app);
+    }
+    if app.show_regex_input {
+        render_regex_rename_popup(frame, app);
     }
 }
 
@@ -566,4 +569,143 @@ fn render_unified_naming_popup(frame: &mut Frame, app: &App) {
         .style(Style::default().fg(Color::Gray))
         .block(Block::default().borders(Borders::NONE));
     frame.render_widget(help, popup[11]);
+}
+
+fn render_regex_rename_popup(frame: &mut Frame, app: &App) {
+    let area = centered_rect(60, 55, frame.area());
+    frame.render_widget(Clear, area);
+
+    let popup = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(2)
+        .constraints([
+            Constraint::Length(3),  // Title
+            Constraint::Length(1),  // Spacer
+            Constraint::Length(3),  // Find pattern input
+            Constraint::Length(1),  // Spacer
+            Constraint::Length(3),  // Replace pattern input
+            Constraint::Length(1),  // Spacer
+            Constraint::Length(2),  // Error message (if any)
+            Constraint::Min(8),     // Preview area
+            Constraint::Length(3),  // Help text
+        ])
+        .split(area);
+
+    // Title
+    let title = Paragraph::new("正则替换重命名")
+        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .block(Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan)));
+    frame.render_widget(title, popup[0]);
+
+    // Helper to check if a field is focused
+    let is_focused = |focus: RegexFocus| -> bool {
+        focus == app.regex_focus
+    };
+
+    // Find pattern input
+    let find_style = if is_focused(RegexFocus::Find) {
+        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::White)
+    };
+    let find_border_style = if is_focused(RegexFocus::Find) {
+        Style::default().fg(Color::Green)
+    } else {
+        Style::default()
+    };
+    let find_input = Paragraph::new(
+        if app.regex_find.is_empty() { "请输入查找模式 (正则表达式)" } else { &app.regex_find }
+    )
+    .style(if app.regex_find.is_empty() && !is_focused(RegexFocus::Find) {
+        Style::default().fg(Color::DarkGray)
+    } else {
+        find_style
+    })
+    .block(Block::default()
+        .borders(Borders::ALL)
+        .title("查找模式 (支持 $1, $2 捕获组)")
+        .border_style(find_border_style));
+    frame.render_widget(find_input, popup[2]);
+
+    // Replace pattern input
+    let replace_style = if is_focused(RegexFocus::Replace) {
+        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::White)
+    };
+    let replace_border_style = if is_focused(RegexFocus::Replace) {
+        Style::default().fg(Color::Green)
+    } else {
+        Style::default()
+    };
+    let replace_input = Paragraph::new(
+        if app.regex_replace.is_empty() { "请输入替换模式 (可使用 $1, $2 引用捕获组)" } else { &app.regex_replace }
+    )
+    .style(if app.regex_replace.is_empty() && !is_focused(RegexFocus::Replace) {
+        Style::default().fg(Color::DarkGray)
+    } else {
+        replace_style
+    })
+    .block(Block::default()
+        .borders(Borders::ALL)
+        .title("替换模式")
+        .border_style(replace_border_style));
+    frame.render_widget(replace_input, popup[4]);
+
+    // Error message (if any)
+    if let Some(error) = &app.regex_error {
+        let error_para = Paragraph::new(error.as_str())
+            .style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
+            .block(Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Red))
+                .title("错误"));
+        frame.render_widget(error_para, popup[6]);
+    }
+
+    // Preview area
+    let preview_start_idx = if app.regex_error.is_some() { 7 } else { 6 };
+    let preview_title = if app.has_regex_preview() {
+        format!("预览 ({} 个文件将重命名)", app.regex_preview.len())
+    } else if app.regex_error.is_some() {
+        "预览".to_string()
+    } else {
+        "预览 (按 Enter 生成预览)".to_string()
+    };
+
+    let preview_lines: Vec<Line> = if app.has_regex_preview() {
+        app.regex_preview.iter().take(10).map(|(old, new)| {
+            let old_span = Span::styled(old, Style::default().fg(Color::Gray));
+            let arrow = Span::raw(" -> ");
+            let new_span = Span::styled(new, Style::default().fg(Color::Green));
+            Line::from(vec![old_span, arrow, new_span])
+        }).collect()
+    } else if app.regex_error.is_none() && !app.regex_find.is_empty() {
+        vec![Line::from(Span::styled("按 Enter 生成预览", Style::default().fg(Color::DarkGray)))]
+    } else {
+        vec![]
+    };
+
+    let preview = Paragraph::new(preview_lines)
+        .style(Style::default().fg(Color::Gray))
+        .block(Block::default()
+            .borders(Borders::ALL)
+            .title(preview_title));
+    frame.render_widget(preview, popup[preview_start_idx]);
+
+    // Help text
+    let help_text = if app.has_regex_preview() {
+        "Tab 切换 | Enter 执行重命名 | Esc 取消"
+    } else if app.regex_error.is_some() {
+        "修正正则表达式 | Esc 取消"
+    } else {
+        "Tab 切换 | Enter 生成预览 | Esc 取消"
+    };
+
+    let help = Paragraph::new(help_text)
+        .style(Style::default().fg(Color::Gray))
+        .block(Block::default().borders(Borders::NONE));
+    frame.render_widget(help, popup[popup.len() - 1]);
 }

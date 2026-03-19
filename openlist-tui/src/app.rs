@@ -39,6 +39,12 @@ pub enum RenameMode {
     Regex,      // 正则替换
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum RegexFocus {
+    Find,
+    Replace,
+}
+
 impl RenameMode {
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -101,6 +107,15 @@ pub struct App {
     pub unified_preview: Vec<String>,
     pub unified_rename_results: Vec<(String, String, bool)>, // (old_name, new_name, confirmed)
     pub unified_rename_finished: bool,
+    // Regex rename state
+    pub show_regex_input: bool,
+    pub regex_find: String,
+    pub regex_replace: String,
+    pub regex_focus: RegexFocus,
+    pub regex_preview: Vec<(String, String)>, // (original, new)
+    pub regex_rename_results: Vec<(String, String, bool)>, // (old_name, new_name, confirmed)
+    pub regex_rename_finished: bool,
+    pub regex_error: Option<String>,
 }
 
 impl Default for App {
@@ -150,6 +165,15 @@ impl Default for App {
             unified_preview: vec![],
             unified_rename_results: vec![],
             unified_rename_finished: false,
+            // Regex rename state
+            show_regex_input: false,
+            regex_find: String::new(),
+            regex_replace: String::new(),
+            regex_focus: RegexFocus::Find,
+            regex_preview: vec![],
+            regex_rename_results: vec![],
+            regex_rename_finished: false,
+            regex_error: None,
         }
     }
 }
@@ -586,8 +610,6 @@ impl App {
     }
 
     pub fn execute_unified_rename(&mut self) -> Vec<(String, String, bool)> {
-        use crate::models::episode::EpisodeParser;
-
         self.unified_rename_results.clear();
 
         let show_name = self.unified_show_name.clone();
@@ -627,6 +649,97 @@ impl App {
 
     pub fn take_unified_rename_results(&mut self) -> Vec<(String, String, bool)> {
         std::mem::take(&mut self.unified_rename_results)
+    }
+
+    // Regex rename methods
+    pub fn start_regex_mode(&mut self) {
+        if self.files.is_empty() {
+            return;
+        }
+        self.show_regex_input = true;
+        self.regex_focus = RegexFocus::Find;
+        self.regex_find.clear();
+        self.regex_replace.clear();
+        self.regex_preview.clear();
+        self.regex_rename_results.clear();
+        self.regex_rename_finished = false;
+        self.regex_error = None;
+    }
+
+    pub fn cancel_regex(&mut self) {
+        self.show_regex_input = false;
+        self.regex_find.clear();
+        self.regex_replace.clear();
+        self.regex_focus = RegexFocus::Find;
+        self.regex_preview.clear();
+        self.regex_rename_results.clear();
+        self.regex_rename_finished = false;
+        self.regex_error = None;
+    }
+
+    pub fn toggle_regex_focus(&mut self) {
+        self.regex_focus = match self.regex_focus {
+            RegexFocus::Find => RegexFocus::Replace,
+            RegexFocus::Replace => RegexFocus::Find,
+        };
+    }
+
+    pub fn submit_regex(&mut self) {
+        // Validate regex pattern first
+        match regex::Regex::new(&self.regex_find) {
+            Ok(_) => {
+                // Valid regex - generate preview
+                self.generate_regex_preview();
+                self.regex_error = None;
+            }
+            Err(e) => {
+                // Invalid regex - show error
+                self.regex_error = Some(format!("正则表达式无效：{}", e));
+            }
+        }
+    }
+
+    pub fn generate_regex_preview(&mut self) {
+        self.regex_preview.clear();
+
+        if let Ok(re) = regex::Regex::new(&self.regex_find) {
+            for file in &self.files {
+                let new_name = re.replace_all(&file.name, &self.regex_replace).to_string();
+                if new_name != file.name {
+                    self.regex_preview.push((file.name.clone(), new_name));
+                }
+            }
+        }
+    }
+
+    pub fn execute_regex_rename(&mut self) -> Vec<(String, String, bool)> {
+        self.regex_rename_results.clear();
+
+        if let Ok(re) = regex::Regex::new(&self.regex_find) {
+            for file in &self.files {
+                let new_name = re.replace_all(&file.name, &self.regex_replace).to_string();
+                if new_name != file.name {
+                    self.regex_rename_results.push((file.name.clone(), new_name, true));
+                }
+            }
+        }
+
+        self.regex_rename_finished = true;
+        self.show_regex_input = false;
+
+        self.regex_rename_results.clone()
+    }
+
+    pub fn get_regex_preview(&self) -> &[(String, String)] {
+        &self.regex_preview
+    }
+
+    pub fn take_regex_rename_results(&mut self) -> Vec<(String, String, bool)> {
+        std::mem::take(&mut self.regex_rename_results)
+    }
+
+    pub fn has_regex_preview(&self) -> bool {
+        !self.regex_preview.is_empty() && self.regex_error.is_none()
     }
 }
 
