@@ -829,7 +829,7 @@ impl App {
             }
             AppError::Auth(msg) => {
                 // Authentication error - may be token related
-                self.is_token_expired = true;
+                // Don't set is_token_expired here - only set it for actual token expiration
                 self.error_message = Some(format!("认证失败：{}", msg));
                 self.show_error_popup = true;
             }

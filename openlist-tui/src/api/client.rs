@@ -81,9 +81,27 @@ impl OpenListClient {
                     AppError::Network(err_str)
                 }
             })?;
-        let api: ApiResponse<LoginResponse> = self.handle_response(resp).await?;
-        api.data
-            .map(|d| d.token)
+
+        // Parse response as generic Value first to handle different formats
+        let v: serde_json::Value = self.handle_response::<serde_json::Value>(resp).await?;
+
+        // Try to extract token from different possible locations
+        let token = v.get("data")
+            .and_then(|data| {
+                // Try data.token format
+                data.get("token").and_then(|t| t.as_str())
+            })
+            .or_else(|| {
+                // Try data as direct string format
+                v.get("data").and_then(|d| d.as_str())
+            })
+            .or_else(|| {
+                // Try token at root level
+                v.get("token").and_then(|t| t.as_str())
+            });
+
+        token
+            .map(|s| s.to_string())
             .ok_or_else(|| AppError::Auth("未返回 token".into()))
     }
 

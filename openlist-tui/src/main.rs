@@ -107,7 +107,10 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                             }
                         }
                         Err(e) => {
+                            // Login failed - show error but keep login screen open for retry
                             app.handle_api_error_from_app_error(e);
+                            // Keep login screen open so user can retry
+                            // Only set error flags, don't close login screen
                         }
                     }
                     app.is_logging_in = false;
