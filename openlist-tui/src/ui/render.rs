@@ -5,7 +5,7 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame,
 };
-use crate::app::{App, LoginFocus};
+use crate::app::{App, LoginFocus, RenameMode};
 
 pub fn render(frame: &mut Frame, app: &mut App) {
     let chunks = Layout::default()
@@ -26,6 +26,9 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     }
     if app.show_login_screen {
         render_login_dialog(frame, app);
+    }
+    if app.show_rename_mode_popup {
+        render_rename_mode_popup(frame, app);
     }
 }
 
@@ -274,4 +277,70 @@ fn render_login_dialog(frame: &mut Frame, app: &App) {
         .style(help_style)
         .block(Block::default().borders(Borders::NONE));
     frame.render_widget(help, layout[5]);
+}
+
+fn render_rename_mode_popup(frame: &mut Frame, app: &App) {
+    let area = centered_rect(60, 50, frame.area());
+    frame.render_widget(Clear, area);
+
+    let popup = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(2)
+        .constraints([
+            Constraint::Length(3),  // Title
+            Constraint::Length(1),  // Spacer
+            Constraint::Length(4),  // Mode selection (4 options)
+            Constraint::Length(1),  // Spacer
+            Constraint::Min(5),     // Preview area
+            Constraint::Length(2),  // Help text
+        ])
+        .split(area);
+
+    // Title
+    let title = Paragraph::new("选择重命名模式")
+        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .block(Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan)));
+    frame.render_widget(title, popup[0]);
+
+    // Mode selection options
+    let modes = RenameMode::all();
+    let mode_items: Vec<ListItem> = modes.iter().enumerate().map(|(_i, mode)| {
+        let prefix = if *mode == app.selected_rename_mode { "> " } else { "  " };
+        let style = if *mode == app.selected_rename_mode {
+            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(Color::White)
+        };
+        ListItem::new(Line::from(Span::styled(
+            format!("{}{}", prefix, mode.as_str()),
+            style,
+        )))
+    }).collect();
+
+    let mode_list = List::new(mode_items)
+        .block(Block::default()
+            .borders(Borders::ALL)
+            .title("模式"));
+    frame.render_widget(mode_list, popup[2]);
+
+    // Preview area
+    let preview_title = format!("预览 ({})", app.selected_rename_mode.as_str());
+    let preview_lines: Vec<Line> = app.rename_preview.iter().map(|line| {
+        Line::from(line.as_str())
+    }).collect();
+
+    let preview = Paragraph::new(preview_lines)
+        .style(Style::default().fg(Color::Gray))
+        .block(Block::default()
+            .borders(Borders::ALL)
+            .title(preview_title));
+    frame.render_widget(preview, popup[4]);
+
+    // Help text
+    let help = Paragraph::new("↑/↓ 选择 | Enter 确认 | Esc 取消")
+        .style(Style::default().fg(Color::Gray))
+        .block(Block::default().borders(Borders::NONE));
+    frame.render_widget(help, popup[5]);
 }

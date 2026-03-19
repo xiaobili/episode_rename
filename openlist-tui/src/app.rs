@@ -23,6 +23,29 @@ pub enum AppMode {
     Input,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum RenameMode {
+    Smart,      // 智能重命名
+    Manual,     // 手动重命名
+    Unified,    // 统一命名
+    Regex,      // 正则替换
+}
+
+impl RenameMode {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            RenameMode::Smart => "智能重命名",
+            RenameMode::Manual => "手动重命名",
+            RenameMode::Unified => "统一命名",
+            RenameMode::Regex => "正则替换",
+        }
+    }
+
+    pub fn all() -> [RenameMode; 4] {
+        [RenameMode::Smart, RenameMode::Manual, RenameMode::Unified, RenameMode::Regex]
+    }
+}
+
 pub struct App {
     pub client: OpenListClient,
     pub is_authenticated: bool,
@@ -48,6 +71,11 @@ pub struct App {
     pub show_login_screen: bool,
     pub is_logging_in: bool,
     pub login_focus: LoginFocus,
+    // Rename state
+    pub show_rename_mode_popup: bool,
+    pub selected_rename_mode: RenameMode,
+    pub rename_preview: Vec<String>,
+    pub rename_pattern_input: String,
 }
 
 impl Default for App {
@@ -76,6 +104,10 @@ impl Default for App {
             show_login_screen: false,
             is_logging_in: false,
             login_focus: LoginFocus::Username,
+            show_rename_mode_popup: false,
+            selected_rename_mode: RenameMode::Smart,
+            rename_preview: vec![],
+            rename_pattern_input: String::new(),
         }
     }
 }
@@ -236,6 +268,83 @@ impl App {
         }
 
         Ok(())
+    }
+
+    // Rename mode methods
+    pub fn open_rename_popup(&mut self) {
+        self.show_rename_mode_popup = true;
+        self.selected_rename_mode = RenameMode::Smart;
+        self.generate_rename_preview();
+    }
+
+    pub fn close_rename_popup(&mut self) {
+        self.show_rename_mode_popup = false;
+        self.rename_preview.clear();
+    }
+
+    pub fn select_rename_mode(&mut self, mode: RenameMode) {
+        self.selected_rename_mode = mode;
+        self.generate_rename_preview();
+    }
+
+    pub fn select_next_rename_mode(&mut self) {
+        let modes = RenameMode::all();
+        let current_idx = modes.iter().position(|&m| m == self.selected_rename_mode).unwrap_or(0);
+        let next_idx = (current_idx + 1) % modes.len();
+        self.selected_rename_mode = modes[next_idx];
+        self.generate_rename_preview();
+    }
+
+    pub fn select_previous_rename_mode(&mut self) {
+        let modes = RenameMode::all();
+        let current_idx = modes.iter().position(|&m| m == self.selected_rename_mode).unwrap_or(0);
+        let prev_idx = if current_idx == 0 { modes.len() - 1 } else { current_idx - 1 };
+        self.selected_rename_mode = modes[prev_idx];
+        self.generate_rename_preview();
+    }
+
+    pub fn generate_rename_preview(&mut self) {
+        use crate::models::episode::EpisodeParser;
+
+        self.rename_preview.clear();
+        let parser = EpisodeParser::new();
+
+        // Get selected file(s) - for now, use the currently selected file
+        let selected_file = match self.focus {
+            Focus::File => self.files.get(self.selected_index),
+            _ => None,
+        };
+
+        if let Some(file) = selected_file {
+            if let Some(episode_info) = parser.parse(&file.name) {
+                // Generate new filename based on selected mode
+                let new_name = match self.selected_rename_mode {
+                    RenameMode::Smart => {
+                        parser.generate_name(&episode_info, "{title}.S{season}E{episode}",
+                            &file.name.rsplit('.').next().map(|e| format!(".{}", e)).unwrap_or_default())
+                    }
+                    RenameMode::Manual => file.name.clone(), // Manual mode - user will input
+                    RenameMode::Unified => format!("{}_{:02}", episode_info.title, episode_info.episode),
+                    RenameMode::Regex => file.name.clone(), // Regex mode - user will input pattern
+                };
+                self.rename_preview.push(format!("{} -> {}", file.name, new_name));
+            } else {
+                self.rename_preview.push(format!("{} (无法识别)", file.name));
+            }
+        } else if self.files.is_empty() {
+            self.rename_preview.push("没有可重命名的文件".to_string());
+        } else {
+            // Preview all files in current directory
+            for file in &self.files {
+                if let Some(episode_info) = parser.parse(&file.name) {
+                    let ext = file.name.rsplit('.').next().map(|e| format!(".{}", e)).unwrap_or_default();
+                    let new_name = parser.generate_name(&episode_info, "{title}.S{season}E{episode}", &ext);
+                    self.rename_preview.push(format!("{} -> {}", file.name, new_name));
+                } else {
+                    self.rename_preview.push(format!("{} (无法识别)", file.name));
+                }
+            }
+        }
     }
 }
 

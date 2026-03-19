@@ -112,6 +112,27 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                     continue;
                 }
 
+                // Handle rename popup input
+                if app.show_rename_mode_popup {
+                    match key.code {
+                        KeyCode::Esc => {
+                            app.close_rename_popup();
+                        }
+                        KeyCode::Enter => {
+                            // Confirm mode selection - close popup and keep mode
+                            app.close_rename_popup();
+                        }
+                        KeyCode::Up | KeyCode::Char('k') => {
+                            app.select_previous_rename_mode();
+                        }
+                        KeyCode::Down | KeyCode::Char('j') => {
+                            app.select_next_rename_mode();
+                        }
+                        _ => {}
+                    }
+                    continue;
+                }
+
                 // Normal mode key bindings
                 match key.code {
                     KeyCode::Char('q') => return Ok(()),
@@ -123,6 +144,10 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                     KeyCode::Char('l') => {
                         // Open login screen
                         app.start_login();
+                    }
+                    KeyCode::Char('r') => {
+                        // Open rename popup
+                        app.open_rename_popup();
                     }
                     KeyCode::Up | KeyCode::Char('k') => app.select_previous(),
                     KeyCode::Down | KeyCode::Char('j') => app.select_next(),
