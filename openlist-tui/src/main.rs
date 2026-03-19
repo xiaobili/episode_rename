@@ -19,6 +19,7 @@ use std::io;
 use crate::app::App;
 use crate::config::Config;
 use crate::app::Focus;
+use crate::app::UnifiedFocus;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -86,6 +87,55 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                 }
             } else {
                 // No results (all skipped), just reload directory
+                if let Err(e) = app.load_directory_contents().await {
+                    app.error_message = Some(format!("加载目录失败：{}", e));
+                    app.show_error_popup = true;
+                }
+            }
+        }
+
+        // Check if unified rename finished and execute batch rename
+        if app.unified_rename_finished {
+            // Take the results and clear the flag
+            let results = app.take_unified_rename_results();
+            app.unified_rename_finished = false;
+
+            if !results.is_empty() {
+                // Build rename objects for batch rename API
+                use crate::api::types::RenameObject;
+                let renames: Vec<RenameObject> = results.iter()
+                    .filter(|(_, _, confirmed)| *confirmed)
+                    .map(|(src_name, new_name, _)| RenameObject {
+                        src_name: src_name.clone(),
+                        new_name: new_name.clone(),
+                    })
+                    .collect();
+
+                if !renames.is_empty() {
+                    // Execute batch rename
+                    match app.client.batch_rename(&app.current_path, renames).await {
+                        Ok(_) => {
+                            // Success - reload directory to show updated names
+                            if let Err(e) = app.load_directory_contents().await {
+                                app.error_message = Some(format!("加载目录失败：{}", e));
+                                app.show_error_popup = true;
+                            }
+                        }
+                        Err(e) => {
+                            // Error - show error popup
+                            app.error_message = Some(format!("批量重命名失败：{}", e));
+                            app.show_error_popup = true;
+                        }
+                    }
+                } else {
+                    // No renames to execute, just reload directory
+                    if let Err(e) = app.load_directory_contents().await {
+                        app.error_message = Some(format!("加载目录失败：{}", e));
+                        app.show_error_popup = true;
+                    }
+                }
+            } else {
+                // No results, just reload directory
                 if let Err(e) = app.load_directory_contents().await {
                     app.error_message = Some(format!("加载目录失败：{}", e));
                     app.show_error_popup = true;
@@ -169,14 +219,23 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                             app.close_rename_popup();
                         }
                         KeyCode::Enter => {
-                            // Check if manual mode is selected
-                            if app.selected_rename_mode == crate::app::RenameMode::Manual {
-                                // Close mode popup and start manual rename
-                                app.close_rename_popup();
-                                app.start_manual_rename();
-                            } else {
-                                // For other modes, just close popup (smart rename would execute here)
-                                app.close_rename_popup();
+                            // Handle different rename modes
+                            match app.selected_rename_mode {
+                                crate::app::RenameMode::Manual => {
+                                    // Close mode popup and start manual rename
+                                    app.close_rename_popup();
+                                    app.start_manual_rename();
+                                }
+                                crate::app::RenameMode::Unified => {
+                                    // Close mode popup and start unified naming
+                                    app.close_rename_popup();
+                                    app.start_unified_mode();
+                                }
+                                _ => {
+                                    // For other modes (Smart, Regex), just close popup
+                                    // Smart rename would execute here in future implementation
+                                    app.close_rename_popup();
+                                }
                             }
                         }
                         KeyCode::Up | KeyCode::Char('k') => {
@@ -212,6 +271,87 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                             // Text input for new filename
                             if app.manual_rename_input.len() < 200 {
                                 app.manual_rename_input.push(c);
+                            }
+                        }
+                        _ => {}
+                    }
+                    continue;
+                }
+
+                // Handle unified naming popup input
+                if app.show_unified_input {
+                    match key.code {
+                        KeyCode::Esc => {
+                            // Cancel unified naming
+                            app.cancel_unified();
+                        }
+                        KeyCode::Enter => {
+                            // Validate inputs first
+                            match app.validate_unified_inputs() {
+                                Ok(_) => {
+                                    // Execute unified rename
+                                    app.execute_unified_rename();
+                                }
+                                Err(e) => {
+                                    // Show validation error
+                                    app.error_message = Some(e);
+                                    app.show_error_popup = true;
+                                    app.show_unified_input = false;
+                                }
+                            }
+                        }
+                        KeyCode::Tab => {
+                            // Switch between input fields
+                            app.toggle_unified_focus();
+                        }
+                        KeyCode::Backspace => {
+                            // Delete last character from current field
+                            match app.unified_focus {
+                                UnifiedFocus::ShowName => {
+                                    app.unified_show_name.pop();
+                                }
+                                UnifiedFocus::Season => {
+                                    app.unified_season.pop();
+                                }
+                                UnifiedFocus::StartEpisode => {
+                                    app.unified_start_episode.pop();
+                                }
+                                UnifiedFocus::Pattern => {
+                                    app.unified_pattern.pop();
+                                }
+                            }
+                            // Update preview after editing
+                            app.generate_unified_preview();
+                        }
+                        KeyCode::Char(c) => {
+                            // Text input for current field
+                            match app.unified_focus {
+                                UnifiedFocus::ShowName => {
+                                    if app.unified_show_name.len() < 100 {
+                                        app.unified_show_name.push(c);
+                                        app.generate_unified_preview();
+                                    }
+                                }
+                                UnifiedFocus::Season => {
+                                    // Only allow digits
+                                    if c.is_ascii_digit() && app.unified_season.len() < 3 {
+                                        app.unified_season.push(c);
+                                        app.generate_unified_preview();
+                                    }
+                                }
+                                UnifiedFocus::StartEpisode => {
+                                    // Only allow digits
+                                    if c.is_ascii_digit() && app.unified_start_episode.len() < 4 {
+                                        app.unified_start_episode.push(c);
+                                        app.generate_unified_preview();
+                                    }
+                                }
+                                UnifiedFocus::Pattern => {
+                                    if app.unified_pattern.len() < 100 {
+                                        app.unified_pattern.push(c);
+                                        app.generate_unified_preview();
+                                    }
+                                }
                             }
                         }
                         _ => {}

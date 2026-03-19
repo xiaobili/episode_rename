@@ -5,7 +5,7 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame,
 };
-use crate::app::{App, LoginFocus, RenameMode};
+use crate::app::{App, LoginFocus, RenameMode, UnifiedFocus};
 
 pub fn render(frame: &mut Frame, app: &mut App) {
     let chunks = Layout::default()
@@ -32,6 +32,9 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     }
     if app.show_manual_rename_popup {
         render_manual_rename_popup(frame, app);
+    }
+    if app.show_unified_input {
+        render_unified_naming_popup(frame, app);
     }
 }
 
@@ -408,4 +411,159 @@ fn render_manual_rename_popup(frame: &mut Frame, app: &App) {
         .style(Style::default().fg(Color::Gray))
         .block(Block::default().borders(Borders::NONE));
     frame.render_widget(help, popup[7]);
+}
+
+fn render_unified_naming_popup(frame: &mut Frame, app: &App) {
+    let area = centered_rect(60, 60, frame.area());
+    frame.render_widget(Clear, area);
+
+    let popup = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(2)
+        .constraints([
+            Constraint::Length(3),  // Title
+            Constraint::Length(1),  // Spacer
+            Constraint::Length(3),  // Show name input
+            Constraint::Length(1),  // Spacer
+            Constraint::Length(3),  // Season input
+            Constraint::Length(1),  // Spacer
+            Constraint::Length(3),  // Start episode input
+            Constraint::Length(1),  // Spacer
+            Constraint::Length(3),  // Pattern input
+            Constraint::Length(1),  // Spacer
+            Constraint::Min(5),     // Preview area
+            Constraint::Length(2),  // Help text
+        ])
+        .split(area);
+
+    // Title
+    let title = Paragraph::new("统一命名")
+        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .block(Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan)));
+    frame.render_widget(title, popup[0]);
+
+    // Helper to check if a field is focused
+    let is_focused = |focus: UnifiedFocus| -> bool {
+        focus == app.unified_focus
+    };
+
+    // Show name input
+    let show_name_style = if is_focused(UnifiedFocus::ShowName) {
+        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::White)
+    };
+    let show_name_border = if is_focused(UnifiedFocus::ShowName) {
+        Borders::ALL
+    } else {
+        Borders::ALL
+    };
+    let show_name_border_style = if is_focused(UnifiedFocus::ShowName) {
+        Style::default().fg(Color::Green)
+    } else {
+        Style::default()
+    };
+    let show_name_input = Paragraph::new(
+        if app.unified_show_name.is_empty() { "请输入剧集名称" } else { &app.unified_show_name }
+    )
+    .style(if app.unified_show_name.is_empty() && !is_focused(UnifiedFocus::ShowName) {
+        Style::default().fg(Color::DarkGray)
+    } else {
+        show_name_style
+    })
+    .block(Block::default()
+        .borders(show_name_border)
+        .title("剧集名称")
+        .border_style(show_name_border_style));
+    frame.render_widget(show_name_input, popup[2]);
+
+    // Season input
+    let season_style = if is_focused(UnifiedFocus::Season) {
+        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::White)
+    };
+    let season_border_style = if is_focused(UnifiedFocus::Season) {
+        Style::default().fg(Color::Green)
+    } else {
+        Style::default()
+    };
+    let season_input = Paragraph::new(
+        if app.unified_season.is_empty() { "1" } else { &app.unified_season }
+    )
+    .style(if app.unified_season.is_empty() && !is_focused(UnifiedFocus::Season) {
+        Style::default().fg(Color::DarkGray)
+    } else {
+        season_style
+    })
+    .block(Block::default()
+        .borders(Borders::ALL)
+        .title("季数 (S01)")
+        .border_style(season_border_style));
+    frame.render_widget(season_input, popup[4]);
+
+    // Start episode input
+    let episode_style = if is_focused(UnifiedFocus::StartEpisode) {
+        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::White)
+    };
+    let episode_border_style = if is_focused(UnifiedFocus::StartEpisode) {
+        Style::default().fg(Color::Green)
+    } else {
+        Style::default()
+    };
+    let episode_input = Paragraph::new(
+        if app.unified_start_episode.is_empty() { "1" } else { &app.unified_start_episode }
+    )
+    .style(if app.unified_start_episode.is_empty() && !is_focused(UnifiedFocus::StartEpisode) {
+        Style::default().fg(Color::DarkGray)
+    } else {
+        episode_style
+    })
+    .block(Block::default()
+        .borders(Borders::ALL)
+        .title("起始集数 (E01)")
+        .border_style(episode_border_style));
+    frame.render_widget(episode_input, popup[6]);
+
+    // Pattern input
+    let pattern_style = if is_focused(UnifiedFocus::Pattern) {
+        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::White)
+    };
+    let pattern_border_style = if is_focused(UnifiedFocus::Pattern) {
+        Style::default().fg(Color::Green)
+    } else {
+        Style::default()
+    };
+    let pattern_input = Paragraph::new(app.unified_pattern.as_str())
+        .style(pattern_style)
+        .block(Block::default()
+            .borders(Borders::ALL)
+            .title("命名格式 ({title}, {season}, {episode})")
+            .border_style(pattern_border_style));
+    frame.render_widget(pattern_input, popup[8]);
+
+    // Preview area
+    let preview_title = "预览";
+    let preview_lines: Vec<Line> = app.unified_preview.iter().map(|line| {
+        Line::from(line.as_str())
+    }).collect();
+
+    let preview = Paragraph::new(preview_lines)
+        .style(Style::default().fg(Color::Gray))
+        .block(Block::default()
+            .borders(Borders::ALL)
+            .title(preview_title));
+    frame.render_widget(preview, popup[10]);
+
+    // Help text
+    let help = Paragraph::new("Tab 切换 | Enter 执行 | Esc 取消")
+        .style(Style::default().fg(Color::Gray))
+        .block(Block::default().borders(Borders::NONE));
+    frame.render_widget(help, popup[11]);
 }

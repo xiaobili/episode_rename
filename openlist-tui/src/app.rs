@@ -10,6 +10,14 @@ pub enum LoginFocus {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+pub enum UnifiedFocus {
+    ShowName,
+    Season,
+    StartEpisode,
+    Pattern,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Focus {
     Directory,
     File,
@@ -83,6 +91,16 @@ pub struct App {
     pub files_to_rename: Vec<usize>,
     pub manual_rename_results: Vec<(String, String, bool)>, // (old_name, new_name, confirmed)
     pub manual_rename_finished: bool,
+    // Unified naming state
+    pub show_unified_input: bool,
+    pub unified_show_name: String,
+    pub unified_season: String,
+    pub unified_start_episode: String,
+    pub unified_pattern: String,
+    pub unified_focus: UnifiedFocus,
+    pub unified_preview: Vec<String>,
+    pub unified_rename_results: Vec<(String, String, bool)>, // (old_name, new_name, confirmed)
+    pub unified_rename_finished: bool,
 }
 
 impl Default for App {
@@ -122,6 +140,16 @@ impl Default for App {
             files_to_rename: vec![],
             manual_rename_results: vec![],
             manual_rename_finished: false,
+            // Unified naming state
+            show_unified_input: false,
+            unified_show_name: String::new(),
+            unified_season: String::new(),
+            unified_start_episode: String::new(),
+            unified_pattern: "{title}.S{season}E{episode}".to_string(),
+            unified_focus: UnifiedFocus::ShowName,
+            unified_preview: vec![],
+            unified_rename_results: vec![],
+            unified_rename_finished: false,
         }
     }
 }
@@ -448,6 +476,157 @@ impl App {
 
     pub fn take_manual_rename_results(&mut self) -> Vec<(String, String, bool)> {
         std::mem::take(&mut self.manual_rename_results)
+    }
+
+    // Unified naming methods
+    pub fn start_unified_mode(&mut self) {
+        if self.files.is_empty() {
+            return;
+        }
+        self.show_unified_input = true;
+        self.unified_focus = UnifiedFocus::ShowName;
+        self.unified_show_name.clear();
+        self.unified_season = "1".to_string();
+        self.unified_start_episode = "1".to_string();
+        self.unified_pattern = "{title}.S{season}E{episode}".to_string();
+        self.unified_preview.clear();
+        self.unified_rename_results.clear();
+        self.unified_rename_finished = false;
+        self.generate_unified_preview();
+    }
+
+    pub fn submit_unified(&mut self) {
+        // Validate and execute unified rename
+        self.unified_rename_finished = true;
+        self.show_unified_input = false;
+        // Note: unified_rename_results contains the renames to execute
+        // Results are cleared after batch rename execution in main.rs
+    }
+
+    pub fn cancel_unified(&mut self) {
+        self.show_unified_input = false;
+        self.unified_show_name.clear();
+        self.unified_season.clear();
+        self.unified_start_episode.clear();
+        self.unified_pattern = "{title}.S{season}E{episode}".to_string();
+        self.unified_focus = UnifiedFocus::ShowName;
+        self.unified_preview.clear();
+        self.unified_rename_results.clear();
+        self.unified_rename_finished = false;
+    }
+
+    pub fn toggle_unified_focus(&mut self) {
+        self.unified_focus = match self.unified_focus {
+            UnifiedFocus::ShowName => UnifiedFocus::Season,
+            UnifiedFocus::Season => UnifiedFocus::StartEpisode,
+            UnifiedFocus::StartEpisode => UnifiedFocus::Pattern,
+            UnifiedFocus::Pattern => UnifiedFocus::ShowName,
+        };
+    }
+
+    pub fn generate_unified_preview(&mut self) {
+        self.unified_preview.clear();
+
+        let show_name = if self.unified_show_name.is_empty() {
+            "Show".to_string()
+        } else {
+            self.unified_show_name.clone()
+        };
+
+        let season: u32 = self.unified_season.parse().unwrap_or(1);
+        let start_episode: u32 = self.unified_start_episode.parse().unwrap_or(1);
+
+        // Generate preview for first few files
+        for (i, file) in self.files.iter().take(5).enumerate() {
+            let episode = start_episode + i as u32;
+            let ext = file.name.rsplit('.').next().map(|e| format!(".{}", e)).unwrap_or_default();
+
+            // Generate name using pattern
+            let s = format!("{:02}", season);
+            let e = format!("{:02}", episode);
+            let new_name = format!(
+                "{}{}",
+                self.unified_pattern
+                    .replace("{title}", &show_name)
+                    .replace("{season}", &s)
+                    .replace("{episode}", &e),
+                ext
+            );
+
+            self.unified_preview.push(format!("{} -> {}", file.name, new_name));
+        }
+
+        if self.files.len() > 5 {
+            self.unified_preview.push(format!("... 还有 {} 个文件", self.files.len() - 5));
+        }
+    }
+
+    pub fn validate_unified_inputs(&self) -> Result<(), String> {
+        if self.unified_show_name.is_empty() {
+            return Err("剧集名称不能为空".to_string());
+        }
+
+        if self.unified_season.is_empty() {
+            return Err("季数不能为空".to_string());
+        }
+
+        if self.unified_season.parse::<u32>().is_err() {
+            return Err("季数必须是数字".to_string());
+        }
+
+        if self.unified_start_episode.is_empty() {
+            return Err("起始集数不能为空".to_string());
+        }
+
+        if self.unified_start_episode.parse::<u32>().is_err() {
+            return Err("起始集数必须是数字".to_string());
+        }
+
+        Ok(())
+    }
+
+    pub fn execute_unified_rename(&mut self) -> Vec<(String, String, bool)> {
+        use crate::models::episode::EpisodeParser;
+
+        self.unified_rename_results.clear();
+
+        let show_name = self.unified_show_name.clone();
+        let season: u32 = self.unified_season.parse().unwrap_or(1);
+        let start_episode: u32 = self.unified_start_episode.parse().unwrap_or(1);
+
+        for (i, file) in self.files.iter().enumerate() {
+            let episode = start_episode + i as u32;
+            let ext = file.name.rsplit('.').next().map(|e| format!(".{}", e)).unwrap_or_default();
+
+            // Generate name using pattern
+            let s = format!("{:02}", season);
+            let e = format!("{:02}", episode);
+            let new_name = format!(
+                "{}{}",
+                self.unified_pattern
+                    .replace("{title}", &show_name)
+                    .replace("{season}", &s)
+                    .replace("{episode}", &e),
+                ext
+            );
+
+            if new_name != file.name {
+                self.unified_rename_results.push((file.name.clone(), new_name, true));
+            }
+        }
+
+        self.unified_rename_finished = true;
+        self.show_unified_input = false;
+
+        self.unified_rename_results.clone()
+    }
+
+    pub fn get_unified_preview(&self) -> &[String] {
+        &self.unified_preview
+    }
+
+    pub fn take_unified_rename_results(&mut self) -> Vec<(String, String, bool)> {
+        std::mem::take(&mut self.unified_rename_results)
     }
 }
 
