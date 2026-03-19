@@ -76,6 +76,13 @@ pub struct App {
     pub selected_rename_mode: RenameMode,
     pub rename_preview: Vec<String>,
     pub rename_pattern_input: String,
+    // Manual rename state
+    pub show_manual_rename_popup: bool,
+    pub manual_rename_input: String,
+    pub manual_rename_index: usize,
+    pub files_to_rename: Vec<usize>,
+    pub manual_rename_results: Vec<(String, String, bool)>, // (old_name, new_name, confirmed)
+    pub manual_rename_finished: bool,
 }
 
 impl Default for App {
@@ -108,6 +115,13 @@ impl Default for App {
             selected_rename_mode: RenameMode::Smart,
             rename_preview: vec![],
             rename_pattern_input: String::new(),
+            // Manual rename state
+            show_manual_rename_popup: false,
+            manual_rename_input: String::new(),
+            manual_rename_index: 0,
+            files_to_rename: vec![],
+            manual_rename_results: vec![],
+            manual_rename_finished: false,
         }
     }
 }
@@ -345,6 +359,95 @@ impl App {
                 }
             }
         }
+    }
+
+    // Manual rename methods
+    pub fn start_manual_rename(&mut self) {
+        if self.files.is_empty() {
+            return;
+        }
+        // Collect all file indices to rename
+        self.files_to_rename = (0..self.files.len()).collect();
+        self.manual_rename_index = 0;
+        self.manual_rename_results.clear();
+
+        // Pre-populate input with current filename
+        if let Some(file) = self.files.get(self.manual_rename_index) {
+            self.manual_rename_input = file.name.clone();
+        }
+        self.show_manual_rename_popup = true;
+    }
+
+    pub fn submit_manual_rename(&mut self) {
+        // Save the rename result
+        if let Some(file) = self.files.get(self.manual_rename_index) {
+            let old_name = file.name.clone();
+            let new_name = self.manual_rename_input.clone();
+            if !new_name.is_empty() && new_name != old_name {
+                self.manual_rename_results.push((old_name, new_name, true));
+            }
+        }
+
+        // Move to next file
+        self.next_manual_rename();
+    }
+
+    pub fn skip_manual_rename(&mut self) {
+        // Skip current file (don't add to results)
+        self.next_manual_rename();
+    }
+
+    pub fn next_manual_rename(&mut self) {
+        self.manual_rename_index += 1;
+
+        if self.manual_rename_index >= self.files.len() {
+            // All files processed, close popup and execute batch rename
+            self.finish_manual_rename();
+        } else {
+            // Load next filename into input
+            if let Some(file) = self.files.get(self.manual_rename_index) {
+                self.manual_rename_input = file.name.clone();
+            }
+        }
+    }
+
+    pub fn finish_manual_rename(&mut self) {
+        self.show_manual_rename_popup = false;
+        self.manual_rename_input.clear();
+        self.files_to_rename.clear();
+        self.manual_rename_index = 0;
+        self.manual_rename_finished = true;
+        // Note: manual_rename_results contains the confirmed renames to execute
+        // Results are cleared after batch rename execution in main.rs
+    }
+
+    pub fn cancel_manual_rename(&mut self) {
+        self.show_manual_rename_popup = false;
+        self.manual_rename_input.clear();
+        self.files_to_rename.clear();
+        self.manual_rename_index = 0;
+        self.manual_rename_results.clear();
+        self.manual_rename_finished = false;
+    }
+
+    pub fn delete_last_manual_rename_char(&mut self) {
+        self.manual_rename_input.pop();
+    }
+
+    pub fn get_manual_rename_progress(&self) -> (usize, usize) {
+        (self.manual_rename_index + 1, self.files.len())
+    }
+
+    pub fn get_current_manual_rename_file(&self) -> Option<&FileItem> {
+        self.files.get(self.manual_rename_index)
+    }
+
+    pub fn get_manual_rename_results(&self) -> &[(String, String, bool)] {
+        &self.manual_rename_results
+    }
+
+    pub fn take_manual_rename_results(&mut self) -> Vec<(String, String, bool)> {
+        std::mem::take(&mut self.manual_rename_results)
     }
 }
 

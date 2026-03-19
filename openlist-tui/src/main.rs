@@ -43,6 +43,56 @@ async fn main() -> Result<()> {
 async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> {
     loop {
         terminal.draw(|f| ui::render::render(f, app))?;
+
+        // Check if manual rename finished and execute batch rename
+        if app.manual_rename_finished {
+            // Take the results and clear the flag
+            let results = app.take_manual_rename_results();
+            app.manual_rename_finished = false;
+
+            if !results.is_empty() {
+                // Build rename objects for batch rename API
+                use crate::api::types::RenameObject;
+                let renames: Vec<RenameObject> = results.iter()
+                    .filter(|(_, _, confirmed)| *confirmed)
+                    .map(|(src_name, new_name, _)| RenameObject {
+                        src_name: src_name.clone(),
+                        new_name: new_name.clone(),
+                    })
+                    .collect();
+
+                if !renames.is_empty() {
+                    // Execute batch rename
+                    match app.client.batch_rename(&app.current_path, renames).await {
+                        Ok(_) => {
+                            // Success - reload directory to show updated names
+                            if let Err(e) = app.load_directory_contents().await {
+                                app.error_message = Some(format!("加载目录失败：{}", e));
+                                app.show_error_popup = true;
+                            }
+                        }
+                        Err(e) => {
+                            // Error - show error popup
+                            app.error_message = Some(format!("批量重命名失败：{}", e));
+                            app.show_error_popup = true;
+                        }
+                    }
+                } else {
+                    // No renames to execute, just reload directory
+                    if let Err(e) = app.load_directory_contents().await {
+                        app.error_message = Some(format!("加载目录失败：{}", e));
+                        app.show_error_popup = true;
+                    }
+                }
+            } else {
+                // No results (all skipped), just reload directory
+                if let Err(e) = app.load_directory_contents().await {
+                    app.error_message = Some(format!("加载目录失败：{}", e));
+                    app.show_error_popup = true;
+                }
+            }
+        }
+
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
                 // Handle login screen input
@@ -119,14 +169,50 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                             app.close_rename_popup();
                         }
                         KeyCode::Enter => {
-                            // Confirm mode selection - close popup and keep mode
-                            app.close_rename_popup();
+                            // Check if manual mode is selected
+                            if app.selected_rename_mode == crate::app::RenameMode::Manual {
+                                // Close mode popup and start manual rename
+                                app.close_rename_popup();
+                                app.start_manual_rename();
+                            } else {
+                                // For other modes, just close popup (smart rename would execute here)
+                                app.close_rename_popup();
+                            }
                         }
                         KeyCode::Up | KeyCode::Char('k') => {
                             app.select_previous_rename_mode();
                         }
                         KeyCode::Down | KeyCode::Char('j') => {
                             app.select_next_rename_mode();
+                        }
+                        _ => {}
+                    }
+                    continue;
+                }
+
+                // Handle manual rename popup input
+                if app.show_manual_rename_popup {
+                    match key.code {
+                        KeyCode::Esc => {
+                            // Cancel manual rename
+                            app.cancel_manual_rename();
+                        }
+                        KeyCode::Enter => {
+                            // Submit current filename and go to next
+                            app.submit_manual_rename();
+                        }
+                        KeyCode::Char('s') | KeyCode::Char('S') => {
+                            // Skip current file
+                            app.skip_manual_rename();
+                        }
+                        KeyCode::Backspace => {
+                            app.delete_last_manual_rename_char();
+                        }
+                        KeyCode::Char(c) => {
+                            // Text input for new filename
+                            if app.manual_rename_input.len() < 200 {
+                                app.manual_rename_input.push(c);
+                            }
                         }
                         _ => {}
                     }
