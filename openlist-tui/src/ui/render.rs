@@ -1,11 +1,11 @@
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Style},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame,
 };
-use crate::app::App;
+use crate::app::{App, LoginFocus};
 
 pub fn render(frame: &mut Frame, app: &mut App) {
     let chunks = Layout::default()
@@ -23,6 +23,9 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     render_help_bar(frame, app, chunks[3]);
     if app.show_error_popup {
         render_error_popup(frame, app);
+    }
+    if app.show_login_screen {
+        render_login_dialog(frame, app);
     }
 }
 
@@ -148,4 +151,103 @@ fn centered_rect(px: u16, py: u16, area: Rect) -> Rect {
             Constraint::Percentage((100 - px) / 2),
         ])
         .split(v[1])[1]
+}
+
+fn render_login_dialog(frame: &mut Frame, app: &App) {
+    let area = centered_rect(50, 40, frame.area());
+    frame.render_widget(Clear, area);
+
+    let _title = if app.is_logging_in { "登录中..." } else { "登录" };
+
+    let layout = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(2)
+        .constraints([
+            Constraint::Length(1),
+            Constraint::Length(3),
+            Constraint::Length(1),
+            Constraint::Length(3),
+            Constraint::Length(1),
+            Constraint::Length(2),
+            Constraint::Min(1),
+        ])
+        .split(area);
+
+    // Username label
+    let username_label_style = if app.login_focus == LoginFocus::Username && !app.is_logging_in {
+        Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::White)
+    };
+    let username_label = Paragraph::new("用户名:")
+        .style(username_label_style);
+    frame.render_widget(username_label, layout[0]);
+
+    // Username input field
+    let username_style = if app.login_focus == LoginFocus::Username && !app.is_logging_in {
+        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::Cyan)
+    };
+    let username_border = if app.login_focus == LoginFocus::Username && !app.is_logging_in {
+        Borders::ALL
+    } else {
+        Borders::ALL
+    };
+    let username_input = Paragraph::new(app.username_input.as_str())
+        .style(username_style)
+        .block(Block::default().borders(username_border).style(
+            if app.login_focus == LoginFocus::Username && !app.is_logging_in {
+                Style::default().fg(Color::Green)
+            } else {
+                Style::default()
+            }
+        ));
+    frame.render_widget(username_input, layout[1]);
+
+    // Password label
+    let password_label_style = if app.login_focus == LoginFocus::Password && !app.is_logging_in {
+        Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::White)
+    };
+    let password_label = Paragraph::new("密码:")
+        .style(password_label_style);
+    frame.render_widget(password_label, layout[2]);
+
+    // Password input field (masked)
+    let password_masked: String = app.password_input.chars().map(|_| '*').collect();
+    let password_style = if app.login_focus == LoginFocus::Password && !app.is_logging_in {
+        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::Cyan)
+    };
+    let password_input = Paragraph::new(password_masked)
+        .style(password_style)
+        .block(Block::default().borders(Borders::ALL).style(
+            if app.login_focus == LoginFocus::Password && !app.is_logging_in {
+                Style::default().fg(Color::Green)
+            } else {
+                Style::default()
+            }
+        ));
+    frame.render_widget(password_input, layout[3]);
+
+    // Help text
+    let help_style = if app.is_logging_in {
+        Style::default().fg(Color::Yellow)
+    } else {
+        Style::default().fg(Color::Gray)
+    };
+
+    let help_text = if app.is_logging_in {
+        "登录中，请稍候..."
+    } else {
+        "Tab 切换 | Enter 登录 | Esc 取消"
+    };
+
+    let help = Paragraph::new(help_text)
+        .style(help_style)
+        .block(Block::default().borders(Borders::NONE));
+    frame.render_widget(help, layout[5]);
 }

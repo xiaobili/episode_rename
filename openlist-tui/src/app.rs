@@ -4,6 +4,12 @@ use crate::config::Config;
 use crate::task::{TaskChannel, PendingTask};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+pub enum LoginFocus {
+    Username,
+    Password,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Focus {
     Directory,
     File,
@@ -35,6 +41,12 @@ pub struct App {
     pub pending_task: PendingTask,
     pub window_width: u16,
     pub window_height: u16,
+    // Login state
+    pub username_input: String,
+    pub password_input: String,
+    pub show_login_screen: bool,
+    pub is_logging_in: bool,
+    pub login_focus: LoginFocus,
 }
 
 impl Default for App {
@@ -57,6 +69,11 @@ impl Default for App {
             pending_task: PendingTask::Idle,
             window_width: 80,
             window_height: 24,
+            username_input: String::new(),
+            password_input: String::new(),
+            show_login_screen: false,
+            is_logging_in: false,
+            login_focus: LoginFocus::Username,
         }
     }
 }
@@ -108,5 +125,52 @@ impl App {
             Focus::File => Focus::Directory,
             Focus::Input => Focus::Directory,
         };
+    }
+
+    // Login methods
+    pub fn start_login(&mut self) {
+        self.show_login_screen = true;
+        self.login_focus = LoginFocus::Username;
+    }
+
+    pub fn clear_login(&mut self) {
+        self.show_login_screen = false;
+        self.is_logging_in = false;
+        self.username_input.clear();
+        self.password_input.clear();
+        self.login_focus = LoginFocus::Username;
+    }
+
+    pub fn submit_login(&mut self) {
+        // Actual login logic is handled in main.rs event loop
+        // This method just sets the flag to indicate login attempt
+        self.is_logging_in = true;
+    }
+
+    pub fn toggle_login_focus(&mut self) {
+        self.login_focus = match self.login_focus {
+            LoginFocus::Username => LoginFocus::Password,
+            LoginFocus::Password => LoginFocus::Username,
+        };
+    }
+
+    pub fn set_login_focus_password(&mut self) {
+        self.login_focus = LoginFocus::Password;
+    }
+
+    pub fn append_to_username(&mut self, ch: char) {
+        self.username_input.push(ch);
+    }
+
+    pub fn append_to_password(&mut self, ch: char) {
+        self.password_input.push(ch);
+    }
+
+    pub fn delete_last_username_char(&mut self) {
+        self.username_input.pop();
+    }
+
+    pub fn delete_last_password_char(&mut self) {
+        self.password_input.pop();
     }
 }
