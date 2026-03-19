@@ -16,6 +16,7 @@ use crossterm::{
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 use std::io;
+use std::time::Duration;
 use crate::app::App;
 use crate::config::Config;
 use crate::app::Focus;
@@ -44,15 +45,12 @@ async fn main() -> Result<()> {
 }
 
 async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> {
+    // UI refresh interval for loading animation (50ms = 20fps for smooth spinner)
+    let ui_refresh_interval = Duration::from_millis(50);
+    let mut last_refresh = std::time::Instant::now();
+
     loop {
-        // Advance spinner frame for loading animation
-        if app.pending_task.is_loading() {
-            app.pending_task.advance_spinner();
-        }
-
-        terminal.draw(|f| ui::render::render(f, app))?;
-
-        // Check for completed async tasks
+        // Check for completed async tasks (non-blocking)
         if let Ok(task_result) = app.task_channel.rx.try_recv() {
             match task_result {
                 TaskResult::ListDirectory(_id, result) => {
@@ -69,6 +67,7 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                     app.stop_loading();
                     // Force re-render to update UI after state change
                     terminal.draw(|f| ui::render::render(f, app))?;
+                    last_refresh = std::time::Instant::now();
                 }
                 TaskResult::BatchRename(_id, result) => {
                     match result {
@@ -87,6 +86,7 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                     app.stop_loading();
                     // Force re-render to update UI after state change
                     terminal.draw(|f| ui::render::render(f, app))?;
+                    last_refresh = std::time::Instant::now();
                 }
                 TaskResult::Login(_id, result) => {
                     match result {
@@ -115,6 +115,7 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                             }
                             // Force re-render to update UI after state change
                             terminal.draw(|f| ui::render::render(f, app))?;
+                            last_refresh = std::time::Instant::now();
                         }
                         Err(e) => {
                             // Login failed - show error but keep login screen open for retry
@@ -127,20 +128,20 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                             app.stop_loading();
                             // Force re-render to show error popup
                             terminal.draw(|f| ui::render::render(f, app))?;
+                            last_refresh = std::time::Instant::now();
                         }
                     }
                 }
             }
         }
 
-        // Check if manual rename finished and execute batch rename
+        // Handle manual rename, unified rename, and regex rename flags
+        // (moved to beginning to process before event handling)
         if app.manual_rename_finished {
-            // Take the results and clear the flag
             let results = app.take_manual_rename_results();
             app.manual_rename_finished = false;
 
             if !results.is_empty() {
-                // Build rename objects for batch rename API
                 use crate::api::types::RenameObject;
                 let renames: Vec<RenameObject> = results.iter()
                     .filter(|(_, _, confirmed)| *confirmed)
@@ -151,7 +152,6 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                     .collect();
 
                 if !renames.is_empty() {
-                    // Set loading state and spawn async task
                     app.pending_task = PendingTask::Renaming {
                         id: 1,
                         total: renames.len(),
@@ -160,25 +160,21 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                         spinner_frame: 0,
                     };
 
-                    // Clone data for async task
                     let tx = app.task_channel.tx.clone();
                     let client = app.client.clone();
                     let current_path = app.current_path.clone();
 
-                    // Spawn async task
                     tokio::spawn(async move {
                         let result = client.batch_rename(&current_path, renames).await;
                         let _ = tx.send(TaskResult::BatchRename(1, result));
                     });
                 } else {
-                    // No renames to execute, just reload directory
                     if let Err(e) = app.load_directory_contents().await {
                         app.handle_api_error(e);
                     }
                     app.manual_rename_finished = false;
                 }
             } else {
-                // No results (all skipped), just reload directory
                 if let Err(e) = app.load_directory_contents().await {
                     app.handle_api_error(e);
                 }
@@ -186,14 +182,11 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
             }
         }
 
-        // Check if unified rename finished and execute batch rename
         if app.unified_rename_finished {
-            // Take the results and clear the flag
             let results = app.take_unified_rename_results();
             app.unified_rename_finished = false;
 
             if !results.is_empty() {
-                // Build rename objects for batch rename API
                 use crate::api::types::RenameObject;
                 let renames: Vec<RenameObject> = results.iter()
                     .filter(|(_, _, confirmed)| *confirmed)
@@ -204,7 +197,6 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                     .collect();
 
                 if !renames.is_empty() {
-                    // Set loading state and spawn async task
                     app.pending_task = PendingTask::Renaming {
                         id: 2,
                         total: renames.len(),
@@ -213,25 +205,21 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                         spinner_frame: 0,
                     };
 
-                    // Clone data for async task
                     let tx = app.task_channel.tx.clone();
                     let client = app.client.clone();
                     let current_path = app.current_path.clone();
 
-                    // Spawn async task
                     tokio::spawn(async move {
                         let result = client.batch_rename(&current_path, renames).await;
                         let _ = tx.send(TaskResult::BatchRename(2, result));
                     });
                 } else {
-                    // No renames to execute, just reload directory
                     if let Err(e) = app.load_directory_contents().await {
                         app.handle_api_error(e);
                     }
                     app.unified_rename_finished = false;
                 }
             } else {
-                // No results, just reload directory
                 if let Err(e) = app.load_directory_contents().await {
                     app.handle_api_error(e);
                 }
@@ -239,14 +227,11 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
             }
         }
 
-        // Check if regex rename finished and execute batch rename
         if app.regex_rename_finished {
-            // Take the results and clear the flag
             let results = app.take_regex_rename_results();
             app.regex_rename_finished = false;
 
             if !results.is_empty() {
-                // Build rename objects for batch rename API
                 use crate::api::types::RenameObject;
                 let renames: Vec<RenameObject> = results.iter()
                     .filter(|(_, _, confirmed)| *confirmed)
@@ -257,7 +242,6 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                     .collect();
 
                 if !renames.is_empty() {
-                    // Set loading state and spawn async task
                     app.pending_task = PendingTask::Renaming {
                         id: 3,
                         total: renames.len(),
@@ -266,25 +250,21 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                         spinner_frame: 0,
                     };
 
-                    // Clone data for async task
                     let tx = app.task_channel.tx.clone();
                     let client = app.client.clone();
                     let current_path = app.current_path.clone();
 
-                    // Spawn async task
                     tokio::spawn(async move {
                         let result = client.batch_rename(&current_path, renames).await;
                         let _ = tx.send(TaskResult::BatchRename(3, result));
                     });
                 } else {
-                    // No renames to execute, just reload directory
                     if let Err(e) = app.load_directory_contents().await {
                         app.handle_api_error(e);
                     }
                     app.regex_rename_finished = false;
                 }
             } else {
-                // No results, just reload directory
                 if let Err(e) = app.load_directory_contents().await {
                     app.handle_api_error(e);
                 }
@@ -292,29 +272,53 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
             }
         }
 
-        if let Event::Key(key) = event::read()? {
-            if key.kind == KeyEventKind::Press {
-                // Handle error popup - highest priority
-                if app.show_error_popup {
-                    match key.code {
-                        KeyCode::Enter => {
-                            if app.is_token_expired {
-                                // Token expired - redirect to login
-                                app.clear_error_and_prepare_relogin();
-                            } else if app.error_message.as_ref().map_or(false, |m| m.contains("网络")) {
-                                // Network error - retry last operation (for future implementation)
-                                app.clear_error();
-                            } else {
-                                // Other errors - just close
+        // Advance spinner frame and re-render UI during loading (every 50ms)
+        let now = std::time::Instant::now();
+        let needs_refresh = app.pending_task.is_loading() &&
+            now.duration_since(last_refresh) >= ui_refresh_interval;
+
+        if needs_refresh {
+            app.pending_task.advance_spinner();
+            terminal.draw(|f| ui::render::render(f, app))?;
+            last_refresh = now;
+        } else if !app.pending_task.is_loading() {
+            // Normal rendering when not loading
+            terminal.draw(|f| ui::render::render(f, app))?;
+            last_refresh = now;
+        }
+
+        // Poll for events with timeout (allows periodic UI refresh during loading)
+        let poll_timeout = if app.pending_task.is_loading() {
+            ui_refresh_interval
+        } else {
+            Duration::from_millis(100)
+        };
+
+        if event::poll(poll_timeout)? {
+            if let Event::Key(key) = event::read()? {
+                if key.kind == KeyEventKind::Press {
+                    // Handle error popup - highest priority
+                    if app.show_error_popup {
+                        match key.code {
+                            KeyCode::Enter => {
+                                if app.is_token_expired {
+                                    // Token expired - redirect to login
+                                    app.clear_error_and_prepare_relogin();
+                                } else if app.error_message.as_ref().map_or(false, |m| m.contains("网络")) {
+                                    // Network error - retry last operation (for future implementation)
+                                    app.clear_error();
+                                } else {
+                                    // Other errors - just close
+                                    app.clear_error();
+                                }
+                            }
+                            KeyCode::Esc => {
                                 app.clear_error();
                             }
+                            _ => {}
                         }
-                        KeyCode::Esc => {
-                            app.clear_error();
-                        }
-                        _ => {}
+                        continue;
                     }
-                    continue;
                 }
 
                 // Handle login screen input
