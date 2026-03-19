@@ -135,6 +135,52 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
             }
         }
 
+        // Handle smart rename pending
+        if app.smart_rename_pending {
+            let results = app.take_smart_rename_results();
+            app.smart_rename_pending = false;
+
+            if !results.is_empty() {
+                use crate::api::types::RenameObject;
+                let renames: Vec<RenameObject> = results.iter()
+                    .filter(|(_, _, confirmed)| *confirmed)
+                    .map(|(src_name, new_name, _)| RenameObject {
+                        src_name: src_name.clone(),
+                        new_name: new_name.clone(),
+                    })
+                    .collect();
+
+                if !renames.is_empty() {
+                    app.pending_task = PendingTask::Renaming {
+                        id: 4,
+                        total: renames.len(),
+                        completed: 0,
+                        message: "智能重命名...".to_string(),
+                        spinner_frame: 0,
+                    };
+
+                    let tx = app.task_channel.tx.clone();
+                    let client = app.client.clone();
+                    let current_path = app.current_path.clone();
+
+                    tokio::spawn(async move {
+                        let result = client.batch_rename(&current_path, renames).await;
+                        let _ = tx.send(TaskResult::BatchRename(4, result));
+                    });
+                } else {
+                    // No renames to execute (all files already have correct names)
+                    if let Err(e) = app.load_directory_contents().await {
+                        app.handle_api_error(e);
+                    }
+                }
+            } else {
+                // No files matched pattern
+                if let Err(e) = app.load_directory_contents().await {
+                    app.handle_api_error(e);
+                }
+            }
+        }
+
         // Handle manual rename, unified rename, and regex rename flags
         // (moved to beginning to process before event handling)
         if app.manual_rename_finished {
@@ -431,10 +477,10 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                                     app.close_rename_popup();
                                     app.start_regex_mode();
                                 }
-                                _ => {
-                                    // For other modes (Smart), just close popup
-                                    // Smart rename would execute here in future implementation
+                                crate::app::RenameMode::Smart => {
+                                    // Close mode popup and execute smart rename
                                     app.close_rename_popup();
+                                    app.execute_smart_rename();
                                 }
                             }
                         }

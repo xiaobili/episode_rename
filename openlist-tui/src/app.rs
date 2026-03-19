@@ -98,6 +98,9 @@ pub struct App {
     pub selected_rename_mode: RenameMode,
     pub rename_preview: Vec<String>,
     pub rename_pattern_input: String,
+    // Smart rename state
+    pub smart_rename_results: Vec<(String, String, bool)>, // (old_name, new_name, confirmed)
+    pub smart_rename_pending: bool,
     // Manual rename state
     pub show_manual_rename_popup: bool,
     pub manual_rename_input: String,
@@ -167,6 +170,9 @@ impl Default for App {
             selected_rename_mode: RenameMode::Smart,
             rename_preview: vec![],
             rename_pattern_input: String::new(),
+            // Smart rename state
+            smart_rename_results: vec![],
+            smart_rename_pending: false,
             // Manual rename state
             show_manual_rename_popup: false,
             manual_rename_input: String::new(),
@@ -440,6 +446,34 @@ impl App {
                 }
             }
         }
+    }
+
+    // Smart rename methods
+    pub fn execute_smart_rename(&mut self) {
+        use crate::models::episode::EpisodeParser;
+
+        self.smart_rename_results.clear();
+        let parser = EpisodeParser::new();
+
+        for file in &self.files {
+            if let Some(episode_info) = parser.parse(&file.name) {
+                let ext = file.name.rsplit('.').next().map(|e| format!(".{}", e)).unwrap_or_default();
+                let new_name = parser.generate_name(&episode_info, "{title}.S{season}E{episode}", &ext);
+                if new_name != file.name {
+                    self.smart_rename_results.push((file.name.clone(), new_name, true));
+                }
+            }
+        }
+
+        self.smart_rename_pending = true;
+    }
+
+    pub fn get_smart_rename_results(&self) -> &[(String, String, bool)] {
+        &self.smart_rename_results
+    }
+
+    pub fn take_smart_rename_results(&mut self) -> Vec<(String, String, bool)> {
+        std::mem::take(&mut self.smart_rename_results)
     }
 
     // Manual rename methods
