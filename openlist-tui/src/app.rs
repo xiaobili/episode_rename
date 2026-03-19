@@ -83,6 +83,10 @@ pub struct App {
     pub pending_task: PendingTask,
     pub window_width: u16,
     pub window_height: u16,
+    // Loading animation state
+    pub loading_message: Option<String>,
+    pub loading_progress: Option<(usize, usize)>, // (completed, total)
+    pub loading_spinner_frame: usize,
     // Login state
     pub username_input: String,
     pub password_input: String,
@@ -151,6 +155,9 @@ impl Default for App {
             pending_task: PendingTask::Idle,
             window_width: 80,
             window_height: 24,
+            loading_message: None,
+            loading_progress: None,
+            loading_spinner_frame: 0,
             username_input: String::new(),
             password_input: String::new(),
             show_login_screen: false,
@@ -873,6 +880,32 @@ impl App {
         self.error_message = None;
         self.error_type = None;
         self.error_code = None;
+    }
+
+    // Loading animation methods
+    pub fn start_loading(&mut self, message: String) {
+        self.loading_message = Some(message);
+        self.loading_progress = None;
+        self.loading_spinner_frame = 0;
+    }
+
+    pub fn update_progress(&mut self, completed: usize, total: usize) {
+        self.loading_progress = Some((completed, total));
+    }
+
+    pub fn stop_loading(&mut self) {
+        self.loading_message = None;
+        self.loading_progress = None;
+        self.loading_spinner_frame = 0;
+    }
+
+    pub fn advance_spinner(&mut self) {
+        self.loading_spinner_frame = (self.loading_spinner_frame + 1) % 10;
+    }
+
+    pub fn get_spinner_char(&self) -> char {
+        const SPINNER_CHARS: [char; 10] = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+        SPINNER_CHARS[self.loading_spinner_frame % 10]
     }
 }
 

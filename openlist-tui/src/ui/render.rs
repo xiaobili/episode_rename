@@ -2,7 +2,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Gauge},
     Frame,
 };
 use crate::app::{App, LoginFocus, RenameMode, UnifiedFocus, RegexFocus};
@@ -41,6 +41,10 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     }
     if app.show_single_rename {
         render_single_rename_popup(frame, app);
+    }
+    // Render loading overlay for async tasks
+    if app.pending_task.is_loading() {
+        render_loading_overlay(frame, app);
     }
 }
 
@@ -808,4 +812,59 @@ fn render_single_rename_popup(frame: &mut Frame, app: &App) {
         .style(Style::default().fg(Color::Gray))
         .block(Block::default().borders(Borders::NONE));
     frame.render_widget(help, popup[6]);
+}
+
+fn render_loading_overlay(frame: &mut Frame, app: &App) {
+    let area = centered_rect(50, 30, frame.area());
+    frame.render_widget(Clear, area);
+
+    let popup = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(2)
+        .constraints([
+            Constraint::Length(1),  // Spacer
+            Constraint::Length(3),  // Spinner and message
+            Constraint::Length(1),  // Spacer
+            Constraint::Length(3),  // Progress bar
+            Constraint::Length(1),  // Spacer
+        ])
+        .split(area);
+
+    // Get spinner character and message
+    let spinner_char = app.pending_task.get_spinner_char();
+    let message = app.pending_task.get_message().unwrap_or("处理中...");
+
+    // Spinner and message
+    let spinner_text = format!("{} {}", spinner_char, message);
+    let spinner = Paragraph::new(spinner_text)
+        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .block(Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan))
+            .title("加载中"));
+    frame.render_widget(spinner, popup[1]);
+
+    // Progress bar (if available)
+    if let Some((completed, total)) = app.pending_task.get_progress() {
+        let percentage = if total > 0 {
+            (completed as f64 / total as f64 * 100.0).min(100.0)
+        } else {
+            0.0
+        };
+
+        let progress_text = format!("{}% ({}/{})", percentage as usize, completed, total);
+        let gauge = Gauge::default()
+            .gauge_style(Style::default().fg(Color::Green))
+            .percent(percentage as u16)
+            .label(progress_text);
+        frame.render_widget(gauge, popup[3]);
+    } else {
+        // Indeterminate progress - show animated dots
+        let dots = Paragraph::new("...")
+            .style(Style::default().fg(Color::Yellow))
+            .block(Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Yellow)));
+        frame.render_widget(dots, popup[3]);
+    }
 }

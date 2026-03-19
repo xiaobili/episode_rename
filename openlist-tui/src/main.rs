@@ -21,6 +21,7 @@ use crate::config::Config;
 use crate::app::Focus;
 use crate::app::UnifiedFocus;
 use crate::app::RegexFocus;
+use crate::task::{TaskResult, PendingTask};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -44,7 +45,66 @@ async fn main() -> Result<()> {
 
 async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> {
     loop {
+        // Advance spinner frame for loading animation
+        if app.pending_task.is_loading() {
+            app.pending_task.advance_spinner();
+        }
+
         terminal.draw(|f| ui::render::render(f, app))?;
+
+        // Check for completed async tasks
+        if let Ok(task_result) = app.task_channel.rx.try_recv() {
+            match task_result {
+                TaskResult::ListDirectory(_id, result) => {
+                    match result {
+                        Ok(_) => {
+                            // Directory loaded successfully - will be handled by caller
+                        }
+                        Err(e) => {
+                            app.handle_api_error_from_app_error(e);
+                        }
+                    }
+                    // Stop loading state
+                    app.pending_task = PendingTask::Idle;
+                    app.stop_loading();
+                }
+                TaskResult::BatchRename(_id, result) => {
+                    match result {
+                        Ok(_) => {
+                            // Batch rename successful - reload directory
+                            if let Err(e) = app.load_directory_contents().await {
+                                app.handle_api_error(e);
+                            }
+                        }
+                        Err(e) => {
+                            app.handle_api_error_from_app_error(e);
+                        }
+                    }
+                    // Stop loading state
+                    app.pending_task = PendingTask::Idle;
+                    app.stop_loading();
+                }
+                TaskResult::Login(_id, result) => {
+                    match result {
+                        Ok(token) => {
+                            // Login successful
+                            app.is_authenticated = true;
+                            app.current_user = Some(app.username_input.clone());
+                            app.client = crate::api::client::OpenListClient::new(
+                                app.config.base_url.clone(),
+                                Some(token)
+                            );
+                        }
+                        Err(e) => {
+                            app.handle_api_error_from_app_error(e);
+                        }
+                    }
+                    app.is_logging_in = false;
+                    app.pending_task = PendingTask::Idle;
+                    app.stop_loading();
+                }
+            }
+        }
 
         // Check if manual rename finished and execute batch rename
         if app.manual_rename_finished {
@@ -64,6 +124,17 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                     .collect();
 
                 if !renames.is_empty() {
+                    // Set loading state with progress
+                    app.start_loading("正在批量重命名...".to_string());
+                    app.update_progress(0, renames.len());
+                    app.pending_task = PendingTask::Renaming {
+                        id: 1,
+                        total: renames.len(),
+                        completed: 0,
+                        message: "正在批量重命名...".to_string(),
+                        spinner_frame: 0,
+                    };
+
                     // Execute batch rename
                     match app.client.batch_rename(&app.current_path, renames).await {
                         Ok(_) => {
@@ -77,6 +148,9 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                             app.handle_api_error_from_app_error(e);
                         }
                     }
+                    // Stop loading
+                    app.stop_loading();
+                    app.pending_task = PendingTask::Idle;
                 } else {
                     // No renames to execute, just reload directory
                     if let Err(e) = app.load_directory_contents().await {
@@ -109,6 +183,17 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                     .collect();
 
                 if !renames.is_empty() {
+                    // Set loading state with progress
+                    app.start_loading("正在批量重命名...".to_string());
+                    app.update_progress(0, renames.len());
+                    app.pending_task = PendingTask::Renaming {
+                        id: 2,
+                        total: renames.len(),
+                        completed: 0,
+                        message: "正在批量重命名...".to_string(),
+                        spinner_frame: 0,
+                    };
+
                     // Execute batch rename
                     match app.client.batch_rename(&app.current_path, renames).await {
                         Ok(_) => {
@@ -122,6 +207,9 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                             app.handle_api_error_from_app_error(e);
                         }
                     }
+                    // Stop loading
+                    app.stop_loading();
+                    app.pending_task = PendingTask::Idle;
                 } else {
                     // No renames to execute, just reload directory
                     if let Err(e) = app.load_directory_contents().await {
@@ -154,6 +242,17 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                     .collect();
 
                 if !renames.is_empty() {
+                    // Set loading state with progress
+                    app.start_loading("正在批量重命名...".to_string());
+                    app.update_progress(0, renames.len());
+                    app.pending_task = PendingTask::Renaming {
+                        id: 3,
+                        total: renames.len(),
+                        completed: 0,
+                        message: "正在批量重命名...".to_string(),
+                        spinner_frame: 0,
+                    };
+
                     // Execute batch rename
                     match app.client.batch_rename(&app.current_path, renames).await {
                         Ok(_) => {
@@ -167,6 +266,9 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                             app.handle_api_error_from_app_error(e);
                         }
                     }
+                    // Stop loading
+                    app.stop_loading();
+                    app.pending_task = PendingTask::Idle;
                 } else {
                     // No renames to execute, just reload directory
                     if let Err(e) = app.load_directory_contents().await {
@@ -208,9 +310,12 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
 
                 // Handle login screen input
                 if app.show_login_screen {
-                    if app.is_logging_in {
+                    if app.pending_task.is_loading() {
                         // Wait for login to complete, only allow Esc to cancel
                         if key.code == KeyCode::Esc {
+                            app.pending_task = PendingTask::Idle;
+                            app.stop_loading();
+                            app.is_logging_in = false;
                             app.clear_login();
                         }
                     } else {
@@ -231,32 +336,27 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                                     app.show_error_popup = true;
                                     app.show_login_screen = false;
                                 } else {
-                                    // Perform actual login API call
-                                    app.submit_login();
+                                    // Start loading state and perform async login
+                                    app.is_logging_in = true;
+                                    app.start_loading("正在登录...".to_string());
+                                    app.pending_task = PendingTask::Loading {
+                                        id: 0,
+                                        message: "正在登录...".to_string(),
+                                        spinner_frame: 0,
+                                    };
+
+                                    // Clone data for async task
                                     let username = app.username_input.clone();
                                     let password = app.password_input.clone();
                                     let base_url = app.config.base_url.clone();
+                                    let tx = app.task_channel.tx.clone();
 
-                                    // Create temporary client for login
-                                    let client = crate::api::client::OpenListClient::new(base_url, None);
-
-                                    match client.login(&username, &password).await {
-                                        Ok(token) => {
-                                            // Login successful - update app state
-                                            app.is_authenticated = true;
-                                            app.current_user = Some(username.clone());
-                                            app.client = crate::api::client::OpenListClient::new(
-                                                app.config.base_url.clone(),
-                                                Some(token)
-                                            );
-                                            app.clear_login();
-                                        }
-                                        Err(e) => {
-                                            // Handle login error
-                                            app.handle_api_error_from_app_error(e);
-                                            app.clear_login();
-                                        }
-                                    }
+                                    // Spawn async task
+                                    tokio::spawn(async move {
+                                        let client = crate::api::client::OpenListClient::new(base_url, None);
+                                        let result = client.login(&username, &password).await;
+                                        let _ = tx.send(TaskResult::Login(0, result));
+                                    });
                                 }
                             }
                             KeyCode::Backspace => {
