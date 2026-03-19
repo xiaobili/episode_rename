@@ -164,13 +164,56 @@ fn render_help_bar(frame: &mut Frame, _app: &App, area: Rect) {
 }
 
 fn render_error_popup(frame: &mut Frame, app: &App) {
-    let area = centered_rect(50, 30, frame.area());
+    let area = centered_rect(50, 40, frame.area());
     frame.render_widget(Clear, area);
+
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(2)
+        .constraints([
+            Constraint::Length(1),  // Error type
+            Constraint::Length(1),  // Spacer
+            Constraint::Min(3),     // Error message
+            Constraint::Length(1),  // Spacer
+            Constraint::Length(2),  // Error code (if available)
+            Constraint::Length(3),  // Help text
+        ])
+        .split(area);
+
+    // Error type
+    let error_type = app.error_type.as_deref().unwrap_or("错误");
+    let type_para = Paragraph::new(format!("错误类型：{}", error_type))
+        .style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
+        .block(Block::default().borders(Borders::NONE));
+    frame.render_widget(type_para, popup_layout[0]);
+
+    // Error message
     let msg = app.error_message.as_deref().unwrap_or("未知错误");
-    let p = Paragraph::new(msg)
-        .style(Style::default().fg(Color::Red))
-        .block(Block::default().borders(Borders::ALL).title("错误"));
-    frame.render_widget(p, area);
+    let msg_para = Paragraph::new(msg)
+        .style(Style::default().fg(Color::White))
+        .block(Block::default().borders(Borders::ALL).title("错误详情"));
+    frame.render_widget(msg_para, popup_layout[2]);
+
+    // Error code (if available)
+    if let Some(code) = app.error_code {
+        let code_para = Paragraph::new(format!("错误代码：{}", code))
+            .style(Style::default().fg(Color::Yellow));
+        frame.render_widget(code_para, popup_layout[4]);
+    }
+
+    // Help text with token expired option
+    let help_text = if app.is_token_expired {
+        "Token 已过期，请重新登录 | Enter 前往登录 | Esc 关闭"
+    } else if app.error_message.as_ref().map_or(false, |m| m.contains("网络")) {
+        "Enter 重试 | Esc 关闭"
+    } else {
+        "Enter 关闭"
+    };
+
+    let help = Paragraph::new(help_text)
+        .style(Style::default().fg(Color::Gray))
+        .block(Block::default().borders(Borders::NONE));
+    frame.render_widget(help, popup_layout[5]);
 }
 
 fn centered_rect(px: u16, py: u16, area: Rect) -> Rect {

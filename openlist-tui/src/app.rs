@@ -74,6 +74,10 @@ pub struct App {
     pub show_rename_popup: bool,
     pub show_error_popup: bool,
     pub error_message: Option<String>,
+    pub error_type: Option<String>,
+    pub error_code: Option<i32>,
+    pub is_token_expired: bool,
+    pub auto_relogin_pending: bool,
     pub config: Config,
     pub task_channel: TaskChannel,
     pub pending_task: PendingTask,
@@ -138,6 +142,10 @@ impl Default for App {
             show_rename_popup: false,
             show_error_popup: false,
             error_message: None,
+            error_type: None,
+            error_code: None,
+            is_token_expired: false,
+            auto_relogin_pending: false,
             config: Config::default(),
             task_channel: TaskChannel::new(),
             pending_task: PendingTask::Idle,
@@ -787,6 +795,84 @@ impl App {
 
     pub fn get_single_rename_target(&self) -> Option<&FileItem> {
         self.single_rename_target.as_ref()
+    }
+
+    /// Handle API errors, detecting token expiration and triggering re-login flow
+    pub fn handle_api_error_from_app_error(&mut self, error: crate::error::AppError) {
+        use crate::error::AppError;
+
+        // Store error type and code for display
+        self.error_type = Some(error.error_type().to_string());
+        self.error_code = error.error_code();
+
+        match &error {
+            AppError::TokenExpired => {
+                // Token expired - set flags and prepare for re-login
+                self.is_token_expired = true;
+                self.auto_relogin_pending = true;
+                self.is_authenticated = false;
+                self.error_message = Some("Token 已过期，请重新登录".to_string());
+                self.show_error_popup = true;
+            }
+            AppError::Auth(msg) => {
+                // Authentication error - may be token related
+                self.is_token_expired = true;
+                self.error_message = Some(format!("认证失败：{}", msg));
+                self.show_error_popup = true;
+            }
+            AppError::Network(e) => {
+                // Network error - offer retry option
+                self.is_token_expired = false;
+                self.error_message = Some(format!("网络错误：{}", e));
+                self.show_error_popup = true;
+            }
+            AppError::NotFound(path) => {
+                self.is_token_expired = false;
+                self.error_message = Some(format!("路径不存在：{}", path));
+                self.show_error_popup = true;
+            }
+            AppError::ApiError(msg) => {
+                self.is_token_expired = false;
+                self.error_message = Some(format!("API 错误：{}", msg));
+                self.show_error_popup = true;
+            }
+            _ => {
+                // Other errors
+                self.is_token_expired = false;
+                self.error_message = Some(format!("{}", error));
+                self.show_error_popup = true;
+            }
+        }
+    }
+
+    /// Handle API errors from boxed dyn Error (for load_directory_contents)
+    pub fn handle_api_error(&mut self, error: Box<dyn std::error::Error + 'static>) {
+        use crate::error::AppError;
+
+        // Convert the error to AppError
+        let app_error = AppError::from_boxed_error(error);
+
+        // Delegate to the main handler
+        self.handle_api_error_from_app_error(app_error);
+    }
+
+    /// Clear error state and prepare for re-login
+    pub fn clear_error_and_prepare_relogin(&mut self) {
+        self.show_error_popup = false;
+        self.error_message = None;
+        self.error_type = None;
+        self.error_code = None;
+        self.is_token_expired = false;
+        self.auto_relogin_pending = false;
+        self.show_login_screen = true;
+    }
+
+    /// Clear error state without re-login
+    pub fn clear_error(&mut self) {
+        self.show_error_popup = false;
+        self.error_message = None;
+        self.error_type = None;
+        self.error_code = None;
     }
 }
 

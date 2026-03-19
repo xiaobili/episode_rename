@@ -1,4 +1,4 @@
-use reqwest::{Client, Response};
+use reqwest::{Client, Response, StatusCode};
 use serde::de::DeserializeOwned;
 use crate::api::types::*;
 use crate::error::{AppError, Result};
@@ -29,11 +29,30 @@ impl OpenListClient {
     }
 
     async fn handle_response<T: DeserializeOwned>(&self, resp: Response) -> Result<T> {
-        let text = resp.text().await?;
+        // Check for 401 Unauthorized first
+        if resp.status() == StatusCode::UNAUTHORIZED {
+            return Err(AppError::TokenExpired);
+        }
+
+        let text = resp.text().await.map_err(|e| {
+            let err_str = e.to_string();
+            if err_str.contains("401") || err_str.contains("Unauthorized") {
+                AppError::TokenExpired
+            } else if err_str.contains("connection") || err_str.contains("timeout") || err_str.contains("resolve") {
+                AppError::Network(err_str)
+            } else {
+                AppError::ApiError(format!("读取响应失败：{}", e))
+            }
+        })?;
+
         let v: serde_json::Value = serde_json::from_str(&text).unwrap_or_default();
         if let Some(code) = v.get("code").and_then(|c| c.as_i64()) {
             if code != 200 {
                 let msg = v.get("message").and_then(|m| m.as_str()).unwrap_or("未知错误");
+                // Check for 401 code in response body
+                if code == 401 {
+                    return Err(AppError::TokenExpired);
+                }
                 return Err(AppError::ApiError(msg.to_string()));
             }
         }
@@ -51,7 +70,17 @@ impl OpenListClient {
                 password: password.to_string(),
             })
             .send()
-            .await?;
+            .await
+            .map_err(|e| {
+                let err_str = e.to_string();
+                if err_str.contains("401") || err_str.contains("Unauthorized") {
+                    AppError::TokenExpired
+                } else if err_str.contains("connection") || err_str.contains("timeout") || err_str.contains("resolve") || err_str.contains("dns") {
+                    AppError::Network(err_str)
+                } else {
+                    AppError::Network(err_str)
+                }
+            })?;
         let api: ApiResponse<LoginResponse> = self.handle_response(resp).await?;
         api.data
             .map(|d| d.token)
@@ -66,7 +95,17 @@ impl OpenListClient {
             .headers(self.headers())
             .json(&ListRequest { path: path.into() })
             .send()
-            .await?;
+            .await
+            .map_err(|e| {
+                let err_str = e.to_string();
+                if err_str.contains("401") || err_str.contains("Unauthorized") {
+                    AppError::TokenExpired
+                } else if err_str.contains("connection") || err_str.contains("timeout") || err_str.contains("resolve") || err_str.contains("dns") {
+                    AppError::Network(err_str)
+                } else {
+                    AppError::Network(err_str)
+                }
+            })?;
         let api: ApiResponse<serde_json::Value> = self.handle_response(resp).await?;
         let content = api
             .data
@@ -87,7 +126,17 @@ impl OpenListClient {
                 rename_objects: renames,
             })
             .send()
-            .await?;
+            .await
+            .map_err(|e| {
+                let err_str = e.to_string();
+                if err_str.contains("401") || err_str.contains("Unauthorized") {
+                    AppError::TokenExpired
+                } else if err_str.contains("connection") || err_str.contains("timeout") || err_str.contains("resolve") || err_str.contains("dns") {
+                    AppError::Network(err_str)
+                } else {
+                    AppError::Network(err_str)
+                }
+            })?;
         self.handle_response::<serde_json::Value>(resp).await?;
         Ok(())
     }
@@ -103,7 +152,17 @@ impl OpenListClient {
                 name: new_name.into(),
             })
             .send()
-            .await?;
+            .await
+            .map_err(|e| {
+                let err_str = e.to_string();
+                if err_str.contains("401") || err_str.contains("Unauthorized") {
+                    AppError::TokenExpired
+                } else if err_str.contains("connection") || err_str.contains("timeout") || err_str.contains("resolve") || err_str.contains("dns") {
+                    AppError::Network(err_str)
+                } else {
+                    AppError::Network(err_str)
+                }
+            })?;
         self.handle_response::<serde_json::Value>(resp).await?;
         Ok(())
     }
@@ -115,7 +174,17 @@ impl OpenListClient {
             .get(&url)
             .headers(self.headers())
             .send()
-            .await?;
+            .await
+            .map_err(|e| {
+                let err_str = e.to_string();
+                if err_str.contains("401") || err_str.contains("Unauthorized") {
+                    AppError::TokenExpired
+                } else if err_str.contains("connection") || err_str.contains("timeout") || err_str.contains("resolve") || err_str.contains("dns") {
+                    AppError::Network(err_str)
+                } else {
+                    AppError::Network(err_str)
+                }
+            })?;
         let api: ApiResponse<UserInfo> = self.handle_response(resp).await?;
         api.data
             .ok_or_else(|| AppError::Auth("获取用户失败".into()))

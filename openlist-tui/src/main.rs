@@ -69,28 +69,24 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                         Ok(_) => {
                             // Success - reload directory to show updated names
                             if let Err(e) = app.load_directory_contents().await {
-                                app.error_message = Some(format!("加载目录失败：{}", e));
-                                app.show_error_popup = true;
+                                app.handle_api_error(e);
                             }
                         }
                         Err(e) => {
-                            // Error - show error popup
-                            app.error_message = Some(format!("批量重命名失败：{}", e));
-                            app.show_error_popup = true;
+                            // Error - use centralized error handler
+                            app.handle_api_error_from_app_error(e);
                         }
                     }
                 } else {
                     // No renames to execute, just reload directory
                     if let Err(e) = app.load_directory_contents().await {
-                        app.error_message = Some(format!("加载目录失败：{}", e));
-                        app.show_error_popup = true;
+                        app.handle_api_error(e);
                     }
                 }
             } else {
                 // No results (all skipped), just reload directory
                 if let Err(e) = app.load_directory_contents().await {
-                    app.error_message = Some(format!("加载目录失败：{}", e));
-                    app.show_error_popup = true;
+                    app.handle_api_error(e);
                 }
             }
         }
@@ -118,28 +114,24 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                         Ok(_) => {
                             // Success - reload directory to show updated names
                             if let Err(e) = app.load_directory_contents().await {
-                                app.error_message = Some(format!("加载目录失败：{}", e));
-                                app.show_error_popup = true;
+                                app.handle_api_error(e);
                             }
                         }
                         Err(e) => {
-                            // Error - show error popup
-                            app.error_message = Some(format!("批量重命名失败：{}", e));
-                            app.show_error_popup = true;
+                            // Error - use centralized error handler
+                            app.handle_api_error_from_app_error(e);
                         }
                     }
                 } else {
                     // No renames to execute, just reload directory
                     if let Err(e) = app.load_directory_contents().await {
-                        app.error_message = Some(format!("加载目录失败：{}", e));
-                        app.show_error_popup = true;
+                        app.handle_api_error(e);
                     }
                 }
             } else {
                 // No results, just reload directory
                 if let Err(e) = app.load_directory_contents().await {
-                    app.error_message = Some(format!("加载目录失败：{}", e));
-                    app.show_error_popup = true;
+                    app.handle_api_error(e);
                 }
             }
         }
@@ -167,34 +159,53 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                         Ok(_) => {
                             // Success - reload directory to show updated names
                             if let Err(e) = app.load_directory_contents().await {
-                                app.error_message = Some(format!("加载目录失败：{}", e));
-                                app.show_error_popup = true;
+                                app.handle_api_error(e);
                             }
                         }
                         Err(e) => {
-                            // Error - show error popup
-                            app.error_message = Some(format!("批量重命名失败：{}", e));
-                            app.show_error_popup = true;
+                            // Error - use centralized error handler
+                            app.handle_api_error_from_app_error(e);
                         }
                     }
                 } else {
                     // No renames to execute, just reload directory
                     if let Err(e) = app.load_directory_contents().await {
-                        app.error_message = Some(format!("加载目录失败：{}", e));
-                        app.show_error_popup = true;
+                        app.handle_api_error(e);
                     }
                 }
             } else {
                 // No results, just reload directory
                 if let Err(e) = app.load_directory_contents().await {
-                    app.error_message = Some(format!("加载目录失败：{}", e));
-                    app.show_error_popup = true;
+                    app.handle_api_error(e);
                 }
             }
         }
 
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
+                // Handle error popup - highest priority
+                if app.show_error_popup {
+                    match key.code {
+                        KeyCode::Enter => {
+                            if app.is_token_expired {
+                                // Token expired - redirect to login
+                                app.clear_error_and_prepare_relogin();
+                            } else if app.error_message.as_ref().map_or(false, |m| m.contains("网络")) {
+                                // Network error - retry last operation (for future implementation)
+                                app.clear_error();
+                            } else {
+                                // Other errors - just close
+                                app.clear_error();
+                            }
+                        }
+                        KeyCode::Esc => {
+                            app.clear_error();
+                        }
+                        _ => {}
+                    }
+                    continue;
+                }
+
                 // Handle login screen input
                 if app.show_login_screen {
                     if app.is_logging_in {
@@ -220,11 +231,32 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                                     app.show_error_popup = true;
                                     app.show_login_screen = false;
                                 } else {
-                                    // Perform login - set logging in state
+                                    // Perform actual login API call
                                     app.submit_login();
-                                    // Note: Actual API call would be async
-                                    // For now, just simulate success/failure
-                                    // In production, use tokio runtime for async call
+                                    let username = app.username_input.clone();
+                                    let password = app.password_input.clone();
+                                    let base_url = app.config.base_url.clone();
+
+                                    // Create temporary client for login
+                                    let client = crate::api::client::OpenListClient::new(base_url, None);
+
+                                    match client.login(&username, &password).await {
+                                        Ok(token) => {
+                                            // Login successful - update app state
+                                            app.is_authenticated = true;
+                                            app.current_user = Some(username.clone());
+                                            app.client = crate::api::client::OpenListClient::new(
+                                                app.config.base_url.clone(),
+                                                Some(token)
+                                            );
+                                            app.clear_login();
+                                        }
+                                        Err(e) => {
+                                            // Handle login error
+                                            app.handle_api_error_from_app_error(e);
+                                            app.clear_login();
+                                        }
+                                    }
                                 }
                             }
                             KeyCode::Backspace => {
@@ -485,22 +517,28 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                             // Submit single rename - execute immediately via API
                             if app.single_rename_target.is_some() {
                                 let new_name = app.single_rename_input.clone();
+                                let target = app.single_rename_target.clone();
                                 let current_path = app.current_path.clone();
 
+                                // Build full path for the file
+                                let full_path = if current_path == "/" {
+                                    format!("/{}", target.as_ref().unwrap().name)
+                                } else {
+                                    format!("{}/{}", current_path, target.as_ref().unwrap().name)
+                                };
+
                                 // Execute the rename API call
-                                match app.client.rename_single(&current_path, &new_name).await {
+                                match app.client.rename_single(&full_path, &new_name).await {
                                     Ok(_) => {
                                         // Success - close dialog and reload directory
                                         app.cancel_single_rename();
                                         if let Err(e) = app.load_directory_contents().await {
-                                            app.error_message = Some(format!("加载目录失败：{}", e));
-                                            app.show_error_popup = true;
+                                            app.handle_api_error(e);
                                         }
                                     }
                                     Err(e) => {
-                                        // Error - show error popup
-                                        app.error_message = Some(format!("重命名失败：{}", e));
-                                        app.show_error_popup = true;
+                                        // Error - use centralized error handler
+                                        app.handle_api_error_from_app_error(e);
                                         app.show_single_rename = false;
                                     }
                                 }
@@ -552,8 +590,7 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                                 app.go_parent();
                                 // Load parent directory contents
                                 if let Err(e) = app.load_directory_contents().await {
-                                    app.error_message = Some(format!("加载目录失败：{}", e));
-                                    app.show_error_popup = true;
+                                    app.handle_api_error(e);
                                 }
                             } else if !app.directories.is_empty() {
                                 // Calculate the actual directory index (accounting for parent option)
@@ -568,8 +605,7 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                                     app.enter_directory(&dir_name);
                                     // Load directory contents
                                     if let Err(e) = app.load_directory_contents().await {
-                                        app.error_message = Some(format!("加载目录失败：{}", e));
-                                        app.show_error_popup = true;
+                                        app.handle_api_error(e);
                                     }
                                 }
                             }
@@ -580,8 +616,7 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                         app.go_parent();
                         // Load parent directory contents
                         if let Err(e) = app.load_directory_contents().await {
-                            app.error_message = Some(format!("加载目录失败：{}", e));
-                            app.show_error_popup = true;
+                            app.handle_api_error(e);
                         }
                     }
                     _ => {}
