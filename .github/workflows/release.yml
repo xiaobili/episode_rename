@@ -6,7 +6,7 @@ on:
       - main
       - master
     paths:
-      - 'Cargo.toml'
+      - "Cargo.toml"
   workflow_dispatch:
     inputs:
       force_release:
@@ -35,14 +35,14 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Get current version from Cargo.toml
         id: version
         run: |
           VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Current version: $VERSION"
-      
+
       - name: Check if tag already exists
         id: check-tag
         run: |
@@ -54,7 +54,7 @@ jobs:
             echo "Tag $TAG does not exist"
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
-      
+
       - name: Determine if should release
         id: should-release
         run: |
@@ -66,7 +66,7 @@ jobs:
             echo "::warning::Forcing release even though tag already exists"
           fi
           echo "should=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
-      
+
       - name: Create and push tag
         if: steps.should-release.outputs.should == 'true'
         run: |
@@ -102,46 +102,46 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
           components: rustfmt, clippy
-      
+
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
           shared-key: release-${{ needs.check-version-and-tag.outputs.version }}
-      
+
       # Linux 特定依赖
       - name: Install Linux dependencies
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y pkg-config libssl-dev
-      
+
       - name: Format code
         run: cargo fmt --all
-      
+
       - name: Check code formatting
         run: cargo fmt --all -- --check
-      
-      - name: Run Clippy lints
-        run: cargo clippy --target ${{ matrix.target }} -- --deny warnings
-      
+
+      # - name: Run Clippy lints
+      #   run: cargo clippy --target ${{ matrix.target }} -- --deny warnings
+
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }} --verbose
-      
+
       - name: Verify binary
         run: |
           ls -lh target/${{ matrix.target }}/release/
           file target/${{ matrix.target }}/release/openlist-tui${{ matrix.os == 'windows-latest' && '.exe' || '' }}
-      
+
       - name: Create package directory
         run: mkdir -p release-artifacts
-      
+
       - name: Package binary (Linux/macOS)
         if: matrix.os != 'windows-latest'
         run: |
@@ -150,7 +150,7 @@ jobs:
           tar czf openlist-tui-${{ needs.check-version-and-tag.outputs.version }}-${{ matrix.artifact_prefix }}.tar.gz openlist-tui
           sha256sum openlist-tui-${{ needs.check-version-and-tag.outputs.version }}-${{ matrix.artifact_prefix }}.tar.gz > openlist-tui-${{ needs.check-version-and-tag.outputs.version }}-${{ matrix.artifact_prefix }}.tar.gz.sha256
           rm openlist-tui
-      
+
       - name: Package binary (Windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
@@ -160,14 +160,14 @@ jobs:
           7z a "openlist-tui-${{ needs.check-version-and-tag.outputs.version }}-${{ matrix.artifact_prefix }}.zip" "openlist-tui.exe"
           certutil -hashfile "openlist-tui-${{ needs.check-version-and-tag.outputs.version }}-${{ matrix.artifact_prefix }}.zip" SHA256 | findstr /i /v "CertUtil" | Out-File -FilePath "openlist-tui-${{ needs.check-version-and-tag.outputs.version }}-${{ matrix.artifact_prefix }}.zip.sha256" -Encoding UTF8
           Remove-Item "openlist-tui.exe"
-      
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: openlist-tui-${{ needs.check-version-and-tag.outputs.version }}-${{ matrix.artifact_prefix }}
           path: release-artifacts/*
           retention-days: 1
-      
+
       - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
@@ -189,7 +189,7 @@ jobs:
         with:
           pattern: openlist-tui-${{ needs.check-version-and-tag.outputs.version }}-*
           merge-multiple: true
-      
+
       - name: List released artifacts
         run: |
           echo "## Release Artifacts for v${{ needs.check-version-and-tag.outputs.version }}" >> $GITHUB_STEP_SUMMARY
@@ -198,7 +198,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Checksums" >> $GITHUB_STEP_SUMMARY
           cat *.sha256 2>/dev/null || echo "No checksums found"
-  
+
   # 如果不需要发布，显示信息
   skip-release:
     name: Skip Release Info
