@@ -154,6 +154,22 @@ impl Default for SingleRenameState {
     }
 }
 
+pub struct FolderRenameState {
+    pub input: String,
+    pub target: Option<FileItem>,
+    pub validation_error: Option<String>,
+}
+
+impl Default for FolderRenameState {
+    fn default() -> Self {
+        Self {
+            input: String::new(),
+            target: None,
+            validation_error: None,
+        }
+    }
+}
+
 pub struct RenameState {
     pub mode_selection: RenameModeSelectionState,
     pub smart: SmartRenameState,
@@ -161,6 +177,7 @@ pub struct RenameState {
     pub unified: UnifiedRenameState,
     pub regex: RegexRenameState,
     pub single: SingleRenameState,
+    pub folder: FolderRenameState,
 }
 
 impl Default for RenameState {
@@ -172,6 +189,7 @@ impl Default for RenameState {
             unified: UnifiedRenameState::default(),
             regex: RegexRenameState::default(),
             single: SingleRenameState::default(),
+            folder: FolderRenameState::default(),
         }
     }
 }

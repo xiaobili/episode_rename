@@ -109,6 +109,9 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         Screen::SingleRename => {
             rename::single::render(frame, &app.rename);
         }
+        Screen::FolderRename => {
+            rename::folder::render(frame, &app.rename);
+        }
         Screen::Normal => {}
     }
 

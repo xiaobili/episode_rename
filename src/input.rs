@@ -36,6 +36,7 @@ pub fn key_to_message(app: &App, key: KeyEvent) -> Option<Message> {
         Screen::UnifiedRename => unified_rename_to_message(app, key),
         Screen::RegexRename => regex_rename_to_message(app, key),
         Screen::SingleRename => single_rename_to_message(app, key),
+        Screen::FolderRename => folder_rename_to_message(app, key),
         Screen::Normal => normal_mode_to_message(app, key),
         Screen::ErrorPopup { .. } => None,
     }
@@ -222,6 +223,25 @@ fn single_rename_to_message(app: &App, key: KeyEvent) -> Option<Message> {
     }
 }
 
+fn folder_rename_to_message(app: &App, key: KeyEvent) -> Option<Message> {
+    match key.code {
+        KeyCode::Esc => Some(RenameMsg::CancelFolderRename.into()),
+        KeyCode::Enter => {
+            // Handle specially for async API call
+            None
+        }
+        KeyCode::Backspace => Some(RenameMsg::DeleteFolderRenameChar.into()),
+        KeyCode::Char(c) => {
+            if app.rename.folder.input.len() < 200 {
+                Some(RenameMsg::InputFolderRename(c).into())
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
 fn normal_mode_to_message(app: &App, key: KeyEvent) -> Option<Message> {
     if app.async_state.pending_task.is_loading() {
         return None;
@@ -232,6 +252,9 @@ fn normal_mode_to_message(app: &App, key: KeyEvent) -> Option<Message> {
         KeyCode::Char('l') => Some(AuthMsg::StartLogin.into()),
         KeyCode::Char('r') => Some(RenameMsg::OpenPopup.into()),
         KeyCode::Char('N') => Some(RenameMsg::StartSingleRename.into()),
+        KeyCode::Char('F') if key.modifiers.contains(KeyModifiers::SHIFT) => {
+            Some(RenameMsg::StartFolderRename.into())
+        }
         KeyCode::Up | KeyCode::Char('k') => Some(NavMsg::SelectPrevious.into()),
         KeyCode::Down | KeyCode::Char('j') => Some(NavMsg::SelectNext.into()),
         KeyCode::Tab => Some(NavMsg::ToggleFocus.into()),

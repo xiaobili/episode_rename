@@ -119,4 +119,20 @@ pub enum RenameMsg {
 
     /// Delete the last character from the single rename input
     DeleteSingleRenameChar,
+
+    // === Folder Rename ===
+    /// Start folder rename for the selected directory
+    StartFolderRename,
+
+    /// Submit the folder rename
+    SubmitFolderRename,
+
+    /// Cancel folder rename
+    CancelFolderRename,
+
+    /// Append a character to the folder rename input
+    InputFolderRename(char),
+
+    /// Delete the last character from the folder rename input
+    DeleteFolderRenameChar,
 }

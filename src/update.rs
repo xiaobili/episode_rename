@@ -178,6 +178,13 @@ fn update_rename(state: &mut App, msg: RenameMsg) {
         RenameMsg::CancelSingleRename => cancel_single_rename(state),
         RenameMsg::InputSingleRename(c) => state.rename.single.input.push(c),
         RenameMsg::DeleteSingleRenameChar => { state.rename.single.input.pop(); }
+
+        // Folder rename
+        RenameMsg::StartFolderRename => start_folder_rename(state),
+        RenameMsg::SubmitFolderRename => submit_folder_rename(state),
+        RenameMsg::CancelFolderRename => cancel_folder_rename(state),
+        RenameMsg::InputFolderRename(c) => input_folder_rename_char(state, c),
+        RenameMsg::DeleteFolderRenameChar => delete_last_folder_rename_char(state),
     }
 }
 
@@ -1009,6 +1016,86 @@ pub fn cancel_single_rename(state: &mut App) {
 #[allow(dead_code)]
 pub fn delete_last_single_rename_char(state: &mut App) {
     state.rename.single.input.pop();
+}
+
+// ============================================================================
+// Folder Rename Handlers
+// ============================================================================
+
+/// Start folder rename for the selected directory.
+///
+/// Per D-02, only available when focus is on Directory list.
+/// Handles the ".." parent entry offset per Pitfall 1 in RESEARCH.md.
+pub fn start_folder_rename(state: &mut App) {
+    // Per D-02, only allow folder rename when focused on directory list
+    if state.navigation.focus != Focus::Directory {
+        return;
+    }
+
+    // Calculate directory index (account for ".." parent entry)
+    // Per Pitfall 1 in RESEARCH.md: when current_path != "/", there's a ".." entry at index 0
+    let has_parent = state.navigation.current_path != "/"
+        && !state.navigation.current_path.is_empty();
+    let dir_index = if has_parent {
+        state.navigation.selected_index.saturating_sub(1)
+    } else {
+        state.navigation.selected_index
+    };
+
+    if let Some(folder) = state.navigation.directories.get(dir_index) {
+        state.rename.folder.target = Some(folder.clone());
+        state.rename.folder.input = folder.name.clone();
+        state.rename.folder.validation_error = None;
+        state.ui.screen = Screen::FolderRename;
+    }
+}
+
+/// Submit folder rename - validates input and prepares for async API call.
+///
+/// Per D-14, validation errors shown inline. Per D-04 to D-08, full validation.
+pub fn submit_folder_rename(state: &mut App) {
+    if state.rename.folder.target.is_none() {
+        return;
+    }
+
+    let new_name = state.rename.folder.input.trim();
+
+    // Validate per D-04 to D-08
+    let validation_error = crate::validate::validate_folder_name(
+        new_name,
+        &state.navigation.directories,
+    );
+
+    if let Some(error) = validation_error {
+        state.rename.folder.validation_error = Some(error);
+        return;
+    }
+
+    // Clear any previous validation error
+    state.rename.folder.validation_error = None;
+
+    // The actual API call is handled in tasks.rs::handle_special_keys
+    // This function just prepares the state
+}
+
+/// Cancel folder rename and return to normal mode.
+pub fn cancel_folder_rename(state: &mut App) {
+    state.ui.screen = Screen::Normal;
+    state.rename.folder.input.clear();
+    state.rename.folder.target = None;
+    state.rename.folder.validation_error = None;
+}
+
+/// Append a character to the folder rename input.
+pub fn input_folder_rename_char(state: &mut App, c: char) {
+    if state.rename.folder.input.len() < 255 {
+        state.rename.folder.input.push(c);
+    }
+}
+
+/// Delete the last character from the folder rename input.
+pub fn delete_last_folder_rename_char(state: &mut App) {
+    state.rename.folder.input.pop();
 }
 
 // ============================================================================

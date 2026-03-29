@@ -256,6 +256,58 @@ pub async fn handle_special_keys<B: Backend>(
             }
         }
 
+        // Folder rename Enter - execute async API call
+        Screen::FolderRename => {
+            if key.code == KeyCode::Enter {
+                if let Some(target) = &app.rename.folder.target {
+                    let new_name = app.rename.folder.input.trim().to_string();
+
+                    // Validate before API call
+                    let validation_error = crate::validate::validate_folder_name(
+                        &new_name,
+                        &app.navigation.directories,
+                    );
+
+                    if let Some(error) = validation_error {
+                        app.rename.folder.validation_error = Some(error);
+                    } else {
+                        let current_path = app.navigation.current_path.clone();
+
+                        let full_path = if current_path == "/" {
+                            format!("/{}", target.name)
+                        } else {
+                            format!("{}/{}", current_path, target.name)
+                        };
+
+                        // Set loading animation before API call
+                        app.async_state.pending_task = PendingTask::Loading {
+                            id: 6, // Unique ID for folder rename
+                            message: "正在重命名文件夹...".to_string(),
+                            spinner_frame: 0,
+                        };
+
+                        match app.client.rename_single(&full_path, &new_name).await {
+                            Ok(()) => {
+                                // Reset loading state
+                                app.async_state.pending_task = PendingTask::Idle;
+                                // Per D-17: close popup and refresh silently
+                                update(app, RenameMsg::CancelFolderRename.into());
+                                if let Err(e) = app.load_directory_contents().await {
+                                    app.handle_api_error(e);
+                                }
+                            }
+                            Err(e) => {
+                                // Reset loading state
+                                app.async_state.pending_task = PendingTask::Idle;
+                                // Per D-15: API errors shown via error popup
+                                update(app, Message::Error(ErrorInfo::new(e.to_string())));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Normal mode Enter - directory navigation
         Screen::Normal if !app.async_state.pending_task.is_loading() => {
             if key.code == KeyCode::Enter && app.navigation.focus == Focus::Directory {

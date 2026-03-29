@@ -51,6 +51,7 @@ pub enum Screen {
     UnifiedRename,
     RegexRename,
     SingleRename,
+    FolderRename,
     ErrorPopup {
         error: ErrorInfo,
         previous_screen: Box<Screen>,
@@ -73,6 +74,7 @@ impl Screen {
                 | Screen::UnifiedRename
                 | Screen::RegexRename
                 | Screen::SingleRename
+                | Screen::FolderRename
         )
     }
 }
