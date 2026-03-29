@@ -2,119 +2,211 @@ name: Release
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
+      - master
+    paths:
+      - 'Cargo.toml'
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Version number (e.g., 1.2.3)'
-        required: true
-        type: string
+      force_release:
+        description: "Force create release even if version hasn't changed"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
+  packages: write
 
 env:
   CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
 
 jobs:
-  create-tag:
-    name: Create Tag
+  # 检查版本并创建 tag
+  check-version-and-tag:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
     outputs:
-      tag_name: ${{ steps.create_tag.outputs.tag_name }}
+      version: ${{ steps.version.outputs.version }}
+      tag_exists: ${{ steps.check-tag.outputs.exists }}
+      should_release: ${{ steps.should-release.outputs.should }}
     steps:
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Create and push tag
-        id: create_tag
+          fetch-depth: 0
+      
+      - name: Get current version from Cargo.toml
+        id: version
         run: |
-          TAG_NAME="v${{ github.event.inputs.version }}"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "$TAG_NAME"
-          git push origin "$TAG_NAME"
-          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
-
-  create-release:
-    name: Create Release
-    runs-on: ubuntu-latest
-    needs: create-tag
-    if: always() && (github.event_name == 'push' || needs.create-tag.result == 'success')
-    outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
-      version: ${{ steps.get_version.outputs.version }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Get version
-        id: get_version
-        run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            VERSION="${{ github.event.inputs.version }}"
-          else
-            VERSION="${GITHUB_REF#refs/tags/v}"
-          fi
+          VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-      - name: Create GitHub Release
-        id: create_release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: openlist-tui ${{ steps.get_version.outputs.version }}
-          draft: false
-          prerelease: false
-          generate_release_notes: true
+          echo "Current version: $VERSION"
+      
+      - name: Check if tag already exists
+        id: check-tag
+        run: |
+          TAG="v${{ steps.version.outputs.version }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists"
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Tag $TAG does not exist"
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Determine if should release
+        id: should-release
+        run: |
+          SHOULD_RELEASE="false"
+          if [ "${{ steps.check-tag.outputs.exists }}" = "false" ]; then
+            SHOULD_RELEASE="true"
+          elif [ "${{ github.event.inputs.force_release }}" = "true" ]; then
+            SHOULD_RELEASE="true"
+            echo "::warning::Forcing release even though tag already exists"
+          fi
+          echo "should=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
+      
+      - name: Create and push tag
+        if: steps.should-release.outputs.should == 'true'
+        run: |
+          TAG="v${{ steps.version.outputs.version }}"
+          echo "Creating tag: $TAG"
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+          echo "Tag $TAG created and pushed"
 
   build-release:
     name: Build Release - ${{ matrix.target }}
-    needs: create-release
     runs-on: ${{ matrix.os }}
+    needs: check-version-and-tag
+    if: needs.check-version-and-tag.outputs.should_release == 'true'
     strategy:
       fail-fast: false
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
+            artifact_prefix: linux-x86_64
           - target: x86_64-apple-darwin
             os: macos-latest
+            artifact_prefix: macos-x86_64
           - target: aarch64-apple-darwin
             os: macos-latest
+            artifact_prefix: macos-aarch64
           - target: x86_64-pc-windows-msvc
             os: windows-latest
+            artifact_prefix: windows-x86_64
 
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-      - uses: Swatinem/rust-cache@v2
+          components: rustfmt, clippy
+      
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
-
+          shared-key: release-${{ needs.check-version-and-tag.outputs.version }}
+      
+      # Linux 特定依赖
+      - name: Install Linux dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libssl-dev
+      
+      - name: Check code formatting
+        run: cargo fmt --all -- --check
+      
+      - name: Run Clippy lints
+        run: cargo clippy --target ${{ matrix.target }} -- --deny warnings
+      
       - name: Build release binary
-        run: cargo build --release --target ${{ matrix.target }}
-
+        run: cargo build --release --target ${{ matrix.target }} --verbose
+      
+      - name: Verify binary
+        run: |
+          ls -lh target/${{ matrix.target }}/release/
+          file target/${{ matrix.target }}/release/openlist-tui${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+      
+      - name: Create package directory
+        run: mkdir -p release-artifacts
+      
       - name: Package binary (Linux/macOS)
         if: matrix.os != 'windows-latest'
         run: |
-          tar czf openlist-tui-${{ matrix.target }}.tar.gz -C target/${{ matrix.target }}/release openlist-tui
-
+          cp target/${{ matrix.target }}/release/openlist-tui release-artifacts/
+          cd release-artifacts
+          tar czf openlist-tui-${{ needs.check-version-and-tag.outputs.version }}-${{ matrix.artifact_prefix }}.tar.gz openlist-tui
+          sha256sum openlist-tui-${{ needs.check-version-and-tag.outputs.version }}-${{ matrix.artifact_prefix }}.tar.gz > openlist-tui-${{ needs.check-version-and-tag.outputs.version }}-${{ matrix.artifact_prefix }}.tar.gz.sha256
+          rm openlist-tui
+      
       - name: Package binary (Windows)
         if: matrix.os == 'windows-latest'
+        shell: pwsh
         run: |
-          7z a openlist-tui-${{ matrix.target }}.zip target/${{ matrix.target }}/release/openlist-tui.exe
-
-      - name: Upload Release Asset (Linux/macOS)
-        if: matrix.os != 'windows-latest'
+          Copy-Item "target/${{ matrix.target }}/release/openlist-tui.exe" "release-artifacts/"
+          cd release-artifacts
+          7z a "openlist-tui-${{ needs.check-version-and-tag.outputs.version }}-${{ matrix.artifact_prefix }}.zip" "openlist-tui.exe"
+          certutil -hashfile "openlist-tui-${{ needs.check-version-and-tag.outputs.version }}-${{ matrix.artifact_prefix }}.zip" SHA256 | findstr /i /v "CertUtil" | Out-File -FilePath "openlist-tui-${{ needs.check-version-and-tag.outputs.version }}-${{ matrix.artifact_prefix }}.zip.sha256" -Encoding UTF8
+          Remove-Item "openlist-tui.exe"
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: openlist-tui-${{ needs.check-version-and-tag.outputs.version }}-${{ matrix.artifact_prefix }}
+          path: release-artifacts/*
+          retention-days: 1
+      
+      - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
-          files: openlist-tui-${{ matrix.target }}.tar.gz
-          append_body: false
+          files: release-artifacts/*
+          append_body: true
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload Release Asset (Windows)
-        if: matrix.os == 'windows-latest'
-        uses: softprops/action-gh-release@v2
+  # 验证所有构建是否成功
+  verify-release:
+    name: Verify Release
+    runs-on: ubuntu-latest
+    needs: [check-version-and-tag, build-release]
+    if: always() && needs.check-version-and-tag.outputs.should_release == 'true'
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
         with:
-          files: openlist-tui-${{ matrix.target }}.zip
-          append_body: false
+          pattern: openlist-tui-${{ needs.check-version-and-tag.outputs.version }}-*
+          merge-multiple: true
+      
+      - name: List released artifacts
+        run: |
+          echo "## Release Artifacts for v${{ needs.check-version-and-tag.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          ls -lh *.tar.gz *.zip 2>/dev/null || echo "No archives found"
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Checksums" >> $GITHUB_STEP_SUMMARY
+          cat *.sha256 2>/dev/null || echo "No checksums found"
+  
+  # 如果不需要发布，显示信息
+  skip-release:
+    name: Skip Release Info
+    runs-on: ubuntu-latest
+    needs: check-version-and-tag
+    if: needs.check-version-and-tag.outputs.should_release == 'false'
+    steps:
+      - name: Show skip reason
+        run: |
+          echo "## Release Skipped" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Version v${{ needs.check-version-and-tag.outputs.version }} already has a release tag." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "To force a release, manually trigger the workflow with 'Force release' option enabled." >> $GITHUB_STEP_SUMMARY
