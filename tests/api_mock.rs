@@ -67,6 +67,9 @@ async fn test_rename_single() {
         .create();
 
     let client = OpenListClient::new(server.url(), None);
-    assert!(client.rename_single("/test/file.mkv", "new_name.mkv").await.is_ok());
+    assert!(client
+        .rename_single("/test/file.mkv", "new_name.mkv")
+        .await
+        .is_ok());
     mock.assert();
 }

@@ -1,5 +1,5 @@
-use openlist_tui::app::{App, Screen, UnifiedFocus};
 use openlist_tui::api::types::FileItem;
+use openlist_tui::app::{App, Screen, UnifiedFocus};
 use openlist_tui::update::*;
 
 #[test]
@@ -8,9 +8,21 @@ fn test_start_unified_mode_initializes_state() {
 
     // Add some mock files
     app.navigation.files = vec![
-        FileItem { name: "Show.S01E01.mkv".to_string(), is_dir: false, size: Some(1000) },
-        FileItem { name: "Show.S01E02.mkv".to_string(), is_dir: false, size: Some(1000) },
-        FileItem { name: "Show.S01E03.mkv".to_string(), is_dir: false, size: Some(1000) },
+        FileItem {
+            name: "Show.S01E01.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
+        FileItem {
+            name: "Show.S01E02.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
+        FileItem {
+            name: "Show.S01E03.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
     ];
 
     start_unified_mode(&mut app);
@@ -109,9 +121,21 @@ fn test_unified_naming_input_validation_success() {
 fn test_generate_unified_preview() {
     let mut app = App::new();
     app.navigation.files = vec![
-        FileItem { name: "Video1.mkv".to_string(), is_dir: false, size: Some(1000) },
-        FileItem { name: "Video2.mkv".to_string(), is_dir: false, size: Some(1000) },
-        FileItem { name: "Video3.mkv".to_string(), is_dir: false, size: Some(1000) },
+        FileItem {
+            name: "Video1.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
+        FileItem {
+            name: "Video2.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
+        FileItem {
+            name: "Video3.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
     ];
     app.rename.unified.show_name = "My Show".to_string();
     app.rename.unified.season = "2".to_string();
@@ -133,8 +157,16 @@ fn test_generate_unified_preview() {
 fn test_generate_unified_preview_custom_pattern() {
     let mut app = App::new();
     app.navigation.files = vec![
-        FileItem { name: "ep1.mp4".to_string(), is_dir: false, size: Some(1000) },
-        FileItem { name: "ep2.mp4".to_string(), is_dir: false, size: Some(1000) },
+        FileItem {
+            name: "ep1.mp4".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
+        FileItem {
+            name: "ep2.mp4".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
     ];
     app.rename.unified.show_name = "Series".to_string();
     app.rename.unified.season = "1".to_string();
@@ -221,9 +253,21 @@ fn test_cancel_unified() {
 fn test_execute_unified_rename() {
     let mut app = App::new();
     app.navigation.files = vec![
-        FileItem { name: "old1.mkv".to_string(), is_dir: false, size: Some(1000) },
-        FileItem { name: "old2.mkv".to_string(), is_dir: false, size: Some(1000) },
-        FileItem { name: "old3.mkv".to_string(), is_dir: false, size: Some(1000) },
+        FileItem {
+            name: "old1.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
+        FileItem {
+            name: "old2.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
+        FileItem {
+            name: "old3.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
     ];
     app.rename.unified.show_name = "NewShow".to_string();
     app.rename.unified.season = "1".to_string();
@@ -233,9 +277,30 @@ fn test_execute_unified_rename() {
     let results = execute_unified_rename(&mut app);
 
     assert_eq!(results.len(), 3);
-    assert_eq!(results[0], ("old1.mkv".to_string(), "NewShow.S01E01.mkv".to_string(), true));
-    assert_eq!(results[1], ("old2.mkv".to_string(), "NewShow.S01E02.mkv".to_string(), true));
-    assert_eq!(results[2], ("old3.mkv".to_string(), "NewShow.S01E03.mkv".to_string(), true));
+    assert_eq!(
+        results[0],
+        (
+            "old1.mkv".to_string(),
+            "NewShow.S01E01.mkv".to_string(),
+            true
+        )
+    );
+    assert_eq!(
+        results[1],
+        (
+            "old2.mkv".to_string(),
+            "NewShow.S01E02.mkv".to_string(),
+            true
+        )
+    );
+    assert_eq!(
+        results[2],
+        (
+            "old3.mkv".to_string(),
+            "NewShow.S01E03.mkv".to_string(),
+            true
+        )
+    );
 
     assert!(app.rename.unified.finished);
     assert!(!matches!(app.ui.screen, Screen::UnifiedRename));
@@ -245,8 +310,16 @@ fn test_execute_unified_rename() {
 fn test_execute_unified_rename_custom_start_episode() {
     let mut app = App::new();
     app.navigation.files = vec![
-        FileItem { name: "vid1.mkv".to_string(), is_dir: false, size: Some(1000) },
-        FileItem { name: "vid2.mkv".to_string(), is_dir: false, size: Some(1000) },
+        FileItem {
+            name: "vid1.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
+        FileItem {
+            name: "vid2.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
     ];
     app.rename.unified.show_name = "Series".to_string();
     app.rename.unified.season = "3".to_string();
@@ -256,8 +329,22 @@ fn test_execute_unified_rename_custom_start_episode() {
     let results = execute_unified_rename(&mut app);
 
     assert_eq!(results.len(), 2);
-    assert_eq!(results[0], ("vid1.mkv".to_string(), "Series.S03E10.mkv".to_string(), true));
-    assert_eq!(results[1], ("vid2.mkv".to_string(), "Series.S03E11.mkv".to_string(), true));
+    assert_eq!(
+        results[0],
+        (
+            "vid1.mkv".to_string(),
+            "Series.S03E10.mkv".to_string(),
+            true
+        )
+    );
+    assert_eq!(
+        results[1],
+        (
+            "vid2.mkv".to_string(),
+            "Series.S03E11.mkv".to_string(),
+            true
+        )
+    );
 }
 
 #[test]
@@ -277,9 +364,11 @@ fn test_take_unified_rename_results_clears() {
 #[test]
 fn test_unified_naming_zero_padding() {
     let mut app = App::new();
-    app.navigation.files = vec![
-        FileItem { name: "ep1.mkv".to_string(), is_dir: false, size: Some(1000) },
-    ];
+    app.navigation.files = vec![FileItem {
+        name: "ep1.mkv".to_string(),
+        is_dir: false,
+        size: Some(1000),
+    }];
     app.rename.unified.show_name = "Test".to_string();
     app.rename.unified.season = "1".to_string();
     app.rename.unified.start_episode = "1".to_string();
@@ -294,9 +383,11 @@ fn test_unified_naming_zero_padding() {
 #[test]
 fn test_unified_naming_double_digit_season_episode() {
     let mut app = App::new();
-    app.navigation.files = vec![
-        FileItem { name: "ep1.mkv".to_string(), is_dir: false, size: Some(1000) },
-    ];
+    app.navigation.files = vec![FileItem {
+        name: "ep1.mkv".to_string(),
+        is_dir: false,
+        size: Some(1000),
+    }];
     app.rename.unified.show_name = "Test".to_string();
     app.rename.unified.season = "12".to_string();
     app.rename.unified.start_episode = "15".to_string();
@@ -311,9 +402,11 @@ fn test_unified_naming_double_digit_season_episode() {
 #[test]
 fn test_unified_naming_pattern_placeholders() {
     let mut app = App::new();
-    app.navigation.files = vec![
-        FileItem { name: "video.mkv".to_string(), is_dir: false, size: Some(1000) },
-    ];
+    app.navigation.files = vec![FileItem {
+        name: "video.mkv".to_string(),
+        is_dir: false,
+        size: Some(1000),
+    }];
     app.rename.unified.show_name = "MyShow".to_string();
     app.rename.unified.season = "1".to_string();
     app.rename.unified.start_episode = "1".to_string();
@@ -328,8 +421,16 @@ fn test_unified_naming_pattern_placeholders() {
 fn test_unified_naming_state_transitions() {
     let mut app = App::new();
     app.navigation.files = vec![
-        FileItem { name: "A.mkv".to_string(), is_dir: false, size: Some(1000) },
-        FileItem { name: "B.mkv".to_string(), is_dir: false, size: Some(1000) },
+        FileItem {
+            name: "A.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
+        FileItem {
+            name: "B.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
     ];
 
     // Initial state

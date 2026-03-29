@@ -24,18 +24,18 @@ pub fn render(frame: &mut Frame, rename: &RenameState) {
         .direction(Direction::Vertical)
         .margin(2)
         .constraints([
-            Constraint::Length(3),  // Title
-            Constraint::Length(1),  // Spacer
-            Constraint::Length(3),  // Show name input
-            Constraint::Length(1),  // Spacer
-            Constraint::Length(3),  // Season input
-            Constraint::Length(1),  // Spacer
-            Constraint::Length(3),  // Start episode input
-            Constraint::Length(1),  // Spacer
-            Constraint::Length(3),  // Pattern input
-            Constraint::Length(1),  // Spacer
-            Constraint::Min(5),     // Preview area
-            Constraint::Length(2),  // Help text
+            Constraint::Length(3), // Title
+            Constraint::Length(1), // Spacer
+            Constraint::Length(3), // Show name input
+            Constraint::Length(1), // Spacer
+            Constraint::Length(3), // Season input
+            Constraint::Length(1), // Spacer
+            Constraint::Length(3), // Start episode input
+            Constraint::Length(1), // Spacer
+            Constraint::Length(3), // Pattern input
+            Constraint::Length(1), // Spacer
+            Constraint::Min(5),    // Preview area
+            Constraint::Length(2), // Help text
         ])
         .split(area);
 
@@ -43,10 +43,16 @@ pub fn render(frame: &mut Frame, rename: &RenameState) {
 
     // Title
     let title = Paragraph::new("统一命名")
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
-        .block(Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Cyan)));
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Cyan)),
+        );
     frame.render_widget(title, popup[0]);
 
     // Helper to check if a field is focused
@@ -54,28 +60,42 @@ pub fn render(frame: &mut Frame, rename: &RenameState) {
 
     // Input fields using helper
     render_input_field(
-        frame, popup[2], "剧集名称",
-        &unified.show_name, "请输入剧集名称",
-        is_focused(UnifiedFocus::ShowName)
+        frame,
+        popup[2],
+        "剧集名称",
+        &unified.show_name,
+        "请输入剧集名称",
+        is_focused(UnifiedFocus::ShowName),
     );
     render_input_field(
-        frame, popup[4], "季数 (S01)",
-        &unified.season, "1",
-        is_focused(UnifiedFocus::Season)
+        frame,
+        popup[4],
+        "季数 (S01)",
+        &unified.season,
+        "1",
+        is_focused(UnifiedFocus::Season),
     );
     render_input_field(
-        frame, popup[6], "起始集数 (E01)",
-        &unified.start_episode, "1",
-        is_focused(UnifiedFocus::StartEpisode)
+        frame,
+        popup[6],
+        "起始集数 (E01)",
+        &unified.start_episode,
+        "1",
+        is_focused(UnifiedFocus::StartEpisode),
     );
     render_input_field(
-        frame, popup[8], "命名格式 ({title}, {season}, {episode})",
-        &unified.pattern, "",
-        is_focused(UnifiedFocus::Pattern)
+        frame,
+        popup[8],
+        "命名格式 ({title}, {season}, {episode})",
+        &unified.pattern,
+        "",
+        is_focused(UnifiedFocus::Pattern),
     );
 
     // Preview area
-    let preview_lines: Vec<Line> = unified.preview.iter()
+    let preview_lines: Vec<Line> = unified
+        .preview
+        .iter()
         .map(|line| Line::from(line.as_str()))
         .collect();
     let preview = Paragraph::new(preview_lines)

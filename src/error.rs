@@ -76,12 +76,20 @@ impl AppError {
     pub fn from_boxed_error(err: Box<dyn std::error::Error>) -> Self {
         let err_str = err.to_string();
         // Check for token expired indicators
-        if err_str.contains("401") || err_str.contains("Unauthorized") || err_str.contains("unauthorized") {
+        if err_str.contains("401")
+            || err_str.contains("Unauthorized")
+            || err_str.contains("unauthorized")
+        {
             return AppError::TokenExpired;
         }
         // Check for network error indicators
-        if err_str.contains("network") || err_str.contains("connection") || err_str.contains("timeout")
-            || err_str.contains("resolve") || err_str.contains("connect") || err_str.contains("dns") {
+        if err_str.contains("network")
+            || err_str.contains("connection")
+            || err_str.contains("timeout")
+            || err_str.contains("resolve")
+            || err_str.contains("connect")
+            || err_str.contains("dns")
+        {
             return AppError::Network(err_str);
         }
         // Default to ApiError
@@ -99,7 +107,8 @@ impl From<std::io::Error> for AppError {
         } else if err.kind() == std::io::ErrorKind::TimedOut
             || err.kind() == std::io::ErrorKind::ConnectionAborted
             || err.kind() == std::io::ErrorKind::ConnectionRefused
-            || err.kind() == std::io::ErrorKind::ConnectionReset {
+            || err.kind() == std::io::ErrorKind::ConnectionReset
+        {
             AppError::Network(err_str)
         } else {
             AppError::Io(err_str)

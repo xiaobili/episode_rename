@@ -1,22 +1,22 @@
 use crate::api::client::OpenListClient;
 use crate::config::Config;
-use crate::state::{
-    NavigationState, AuthState, RenameState, UIState, AsyncState,
-};
+use crate::state::{AsyncState, AuthState, NavigationState, RenameState, UIState};
 
 // Re-export for backward compatibility with tests and render
 // These are used by external test code via openlist_tui::app::*
 #[allow(unused_imports)]
-pub use crate::state::{Focus, LoginFocus, UnifiedFocus, RegexFocus, RenameMode, Screen, ErrorInfo};
+pub use crate::state::{
+    ErrorInfo, Focus, LoginFocus, RegexFocus, RenameMode, Screen, UnifiedFocus,
+};
 
 pub struct App {
-    pub client: OpenListClient,     // D-06: top-level
-    pub config: Config,             // D-07: top-level
+    pub client: OpenListClient, // D-06: top-level
+    pub config: Config,         // D-07: top-level
     pub navigation: NavigationState,
     pub auth: AuthState,
     pub rename: RenameState,
     pub ui: UIState,
-    pub async_state: AsyncState,    // D-08
+    pub async_state: AsyncState, // D-08
 }
 
 impl Default for App {

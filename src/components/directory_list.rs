@@ -86,13 +86,13 @@ pub fn render(frame: &mut Frame, area: Rect, nav: &NavigationState, config: &Con
         .enumerate()
         .map(|(idx, content)| {
             let actual_index = idx + scroll_offset;
-            let is_selected = actual_index == nav.selected_index && matches!(nav.focus, Focus::Directory);
+            let is_selected =
+                actual_index == nav.selected_index && matches!(nav.focus, Focus::Directory);
             let prefix = if is_selected { "> " } else { "  " };
             ListItem::new(format!("{}{}", prefix, content))
         })
         .collect();
 
-    let list = List::new(visible_items)
-        .block(Block::default().borders(Borders::ALL).title("目录"));
+    let list = List::new(visible_items).block(Block::default().borders(Borders::ALL).title("目录"));
     frame.render_widget(list, area);
 }

@@ -10,8 +10,10 @@ use ratatui::{
     Frame,
 };
 
-use crate::components::style::{centered_rect, COLOR_CYAN, COLOR_GRAY, COLOR_GREEN, COLOR_YELLOW, COLOR_WHITE};
-use crate::state::{AuthState, AsyncState, LoginFocus};
+use crate::components::style::{
+    centered_rect, COLOR_CYAN, COLOR_GRAY, COLOR_GREEN, COLOR_WHITE, COLOR_YELLOW,
+};
+use crate::state::{AsyncState, AuthState, LoginFocus};
 
 /// Renders the login dialog overlay.
 ///
@@ -44,13 +46,13 @@ pub fn render(frame: &mut Frame, auth: &AuthState, async_state: &AsyncState) {
         .direction(Direction::Vertical)
         .margin(2)
         .constraints([
-            Constraint::Length(1),  // Username label
-            Constraint::Length(3),  // Username input
-            Constraint::Length(1),  // Password label
-            Constraint::Length(3),  // Password input
-            Constraint::Length(1),  // Spacer
-            Constraint::Length(2),  // Help text
-            Constraint::Min(1),     // Bottom spacer
+            Constraint::Length(1), // Username label
+            Constraint::Length(3), // Username input
+            Constraint::Length(1), // Password label
+            Constraint::Length(3), // Password input
+            Constraint::Length(1), // Spacer
+            Constraint::Length(2), // Help text
+            Constraint::Min(1),    // Bottom spacer
         ])
         .split(area);
 
@@ -60,13 +62,14 @@ pub fn render(frame: &mut Frame, auth: &AuthState, async_state: &AsyncState) {
     } else {
         Style::default().fg(COLOR_WHITE)
     };
-    let username_label = Paragraph::new("用户名:")
-        .style(username_label_style);
+    let username_label = Paragraph::new("用户名:").style(username_label_style);
     frame.render_widget(username_label, layout[0]);
 
     // Username input field - Green border when focused
     let username_style = if auth.login_focus == LoginFocus::Username && !is_logging_in {
-        Style::default().fg(COLOR_YELLOW).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(COLOR_YELLOW)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(COLOR_CYAN)
     };
@@ -77,9 +80,11 @@ pub fn render(frame: &mut Frame, auth: &AuthState, async_state: &AsyncState) {
     };
     let username_input = Paragraph::new(auth.username_input.as_str())
         .style(username_style)
-        .block(Block::default()
-            .borders(Borders::ALL)
-            .border_style(username_border_style));
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(username_border_style),
+        );
     frame.render_widget(username_input, layout[1]);
 
     // Password label - Cyan+BOLD when focused, White otherwise
@@ -88,14 +93,15 @@ pub fn render(frame: &mut Frame, auth: &AuthState, async_state: &AsyncState) {
     } else {
         Style::default().fg(COLOR_WHITE)
     };
-    let password_label = Paragraph::new("密码:")
-        .style(password_label_style);
+    let password_label = Paragraph::new("密码:").style(password_label_style);
     frame.render_widget(password_label, layout[2]);
 
     // Password input field (masked with asterisks)
     let password_masked: String = auth.password_input.chars().map(|_| '*').collect();
     let password_style = if auth.login_focus == LoginFocus::Password && !is_logging_in {
-        Style::default().fg(COLOR_YELLOW).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(COLOR_YELLOW)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(COLOR_CYAN)
     };
@@ -104,11 +110,11 @@ pub fn render(frame: &mut Frame, auth: &AuthState, async_state: &AsyncState) {
     } else {
         Style::default()
     };
-    let password_input = Paragraph::new(password_masked)
-        .style(password_style)
-        .block(Block::default()
+    let password_input = Paragraph::new(password_masked).style(password_style).block(
+        Block::default()
             .borders(Borders::ALL)
-            .border_style(password_border_style));
+            .border_style(password_border_style),
+    );
     frame.render_widget(password_input, layout[3]);
 
     // Help text - shows loading state or keybindings

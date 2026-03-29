@@ -40,12 +40,19 @@ async fn main() -> Result<()> {
     let mut terminal = Terminal::new(backend)?;
     let result = run_app(&mut terminal, &mut app).await;
     disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
     terminal.show_cursor()?;
     result
 }
 
-async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> {
+async fn run_app<B: ratatui::backend::Backend>(
+    terminal: &mut Terminal<B>,
+    app: &mut App,
+) -> Result<()> {
     let refresh_interval = Duration::from_millis(50);
     let mut last_refresh = std::time::Instant::now();
     let mut need_reload = false;
@@ -61,11 +68,15 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
                     | Message::Async(AsyncMsg::BatchRenameResult(Ok(())))
             );
             update(app, msg);
-            if reload { need_reload = true; }
+            if reload {
+                need_reload = true;
+            }
         }
         if need_reload && app.auth.is_authenticated {
             need_reload = false;
-            if let Err(e) = app.load_directory_contents().await { app.handle_api_error(e); }
+            if let Err(e) = app.load_directory_contents().await {
+                app.handle_api_error(e);
+            }
         }
         process_pending_renames(app).await;
 
@@ -79,10 +90,16 @@ async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: 
             last_refresh = now;
         }
 
-        let timeout = if loading { refresh_interval } else { Duration::from_millis(100) };
+        let timeout = if loading {
+            refresh_interval
+        } else {
+            Duration::from_millis(100)
+        };
         if event::poll(timeout)? {
             if let Event::Key(key) = event::read()? {
-                if should_quit(key) { return Ok(()); }
+                if should_quit(key) {
+                    return Ok(());
+                }
                 match key_to_message(app, key) {
                     Some(msg) => update(app, msg),
                     None => handle_special_keys(terminal, app, key).await?,

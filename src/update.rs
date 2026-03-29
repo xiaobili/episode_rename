@@ -113,7 +113,9 @@ fn update_rename(state: &mut App, msg: RenameMsg) {
         RenameMsg::SkipManualRename => skip_manual_rename(state),
         RenameMsg::CancelManualRename => cancel_manual_rename(state),
         RenameMsg::InputManualRename(c) => state.rename.manual.input.push(c),
-        RenameMsg::DeleteManualRenameChar => { state.rename.manual.input.pop(); }
+        RenameMsg::DeleteManualRenameChar => {
+            state.rename.manual.input.pop();
+        }
 
         // Unified rename
         RenameMsg::StartUnifiedMode => start_unified_mode(state),
@@ -177,7 +179,9 @@ fn update_rename(state: &mut App, msg: RenameMsg) {
         RenameMsg::SubmitSingleRename => submit_single_rename(state),
         RenameMsg::CancelSingleRename => cancel_single_rename(state),
         RenameMsg::InputSingleRename(c) => state.rename.single.input.push(c),
-        RenameMsg::DeleteSingleRenameChar => { state.rename.single.input.pop(); }
+        RenameMsg::DeleteSingleRenameChar => {
+            state.rename.single.input.pop();
+        }
 
         // Folder rename
         RenameMsg::StartFolderRename => start_folder_rename(state),
@@ -214,7 +218,8 @@ fn update_async(state: &mut App, msg: AsyncMsg) {
                 Ok(token) => {
                     state.auth.is_authenticated = true;
                     state.auth.current_user = Some(state.auth.username_input.clone());
-                    state.client = OpenListClient::new(state.config.base_url.clone(), Some(token.clone()));
+                    state.client =
+                        OpenListClient::new(state.config.base_url.clone(), Some(token.clone()));
                     state.config.token = Some(token);
                     state.config.username = Some(state.auth.username_input.clone());
                     let _ = state.config.save();
@@ -229,9 +234,8 @@ fn update_async(state: &mut App, msg: AsyncMsg) {
             match result {
                 Ok(user_info) => {
                     state.auth.is_authenticated = true;
-                    state.auth.current_user = Some(
-                        user_info.nick.clone().unwrap_or(user_info.username)
-                    );
+                    state.auth.current_user =
+                        Some(user_info.nick.clone().unwrap_or(user_info.username));
                     state.client = OpenListClient::new(
                         state.config.base_url.clone(),
                         state.config.token.clone(),
@@ -304,9 +308,15 @@ use crate::state::Focus;
 pub fn select_next(state: &mut App) {
     let total = match state.navigation.focus {
         Focus::Directory => {
-            state.navigation.directories.len() +
-                if state.navigation.current_path != "/" && !state.navigation.current_path.is_empty() { 1 } else { 0 }
-        },
+            state.navigation.directories.len()
+                + if state.navigation.current_path != "/"
+                    && !state.navigation.current_path.is_empty()
+                {
+                    1
+                } else {
+                    0
+                }
+        }
         Focus::File => state.navigation.files.len(),
         Focus::Input => 0,
     };
@@ -319,9 +329,15 @@ pub fn select_next(state: &mut App) {
 pub fn select_previous(state: &mut App) {
     let total = match state.navigation.focus {
         Focus::Directory => {
-            state.navigation.directories.len() +
-                if state.navigation.current_path != "/" && !state.navigation.current_path.is_empty() { 1 } else { 0 }
-        },
+            state.navigation.directories.len()
+                + if state.navigation.current_path != "/"
+                    && !state.navigation.current_path.is_empty()
+                {
+                    1
+                } else {
+                    0
+                }
+        }
         Focus::File => state.navigation.files.len(),
         Focus::Input => 0,
     };
@@ -345,7 +361,10 @@ pub fn toggle_focus(state: &mut App) {
 
 /// Enter a directory by name.
 pub fn enter_directory(state: &mut App, dir_name: &str) {
-    state.navigation.path_history.push(state.navigation.current_path.clone());
+    state
+        .navigation
+        .path_history
+        .push(state.navigation.current_path.clone());
     if state.navigation.current_path == "/" {
         state.navigation.current_path = format!("/{}", dir_name);
     } else {
@@ -362,12 +381,20 @@ pub fn go_parent(state: &mut App) {
     }
 
     // Store the current directory name for selection after navigation
-    let parts: Vec<&str> = state.navigation.current_path.split('/').filter(|s| !s.is_empty()).collect();
+    let parts: Vec<&str> = state
+        .navigation
+        .current_path
+        .split('/')
+        .filter(|s| !s.is_empty())
+        .collect();
     if let Some(child_name) = parts.last() {
         state.navigation.pending_select_dir = Some(child_name.to_string());
     }
 
-    state.navigation.path_history.push(state.navigation.current_path.clone());
+    state
+        .navigation
+        .path_history
+        .push(state.navigation.current_path.clone());
     if parts.len() <= 1 {
         state.navigation.current_path = "/".to_string();
     } else {
@@ -380,7 +407,10 @@ pub fn go_parent(state: &mut App) {
 
 /// Load directory contents from the API.
 pub async fn load_directory_contents(state: &mut App) -> Result<(), Box<dyn std::error::Error>> {
-    let items = state.client.list_directory(&state.navigation.current_path).await?;
+    let items = state
+        .client
+        .list_directory(&state.navigation.current_path)
+        .await?;
     state.navigation.directories.clear();
     state.navigation.files.clear();
     for item in items {
@@ -395,9 +425,15 @@ pub async fn load_directory_contents(state: &mut App) -> Result<(), Box<dyn std:
     if let Some(child_name) = state.navigation.pending_select_dir.take() {
         // Find the child directory in the list
         // Index 0 is ".." if not at root, so actual dirs start at 1
-        if let Some(idx) = state.navigation.directories.iter().position(|d| d.name == child_name) {
+        if let Some(idx) = state
+            .navigation
+            .directories
+            .iter()
+            .position(|d| d.name == child_name)
+        {
             // +1 because index 0 is ".." when not at root
-            let has_parent_entry = state.navigation.current_path != "/" && !state.navigation.current_path.is_empty();
+            let has_parent_entry =
+                state.navigation.current_path != "/" && !state.navigation.current_path.is_empty();
             state.navigation.selected_index = if has_parent_entry { idx + 1 } else { idx };
         } else {
             state.navigation.selected_index = 0;
@@ -483,11 +519,8 @@ pub fn handle_api_error_from_app_error(state: &mut App, error: crate::error::App
         }
         AppError::Auth(msg) => {
             state.auth.is_token_expired = false;
-            let error_info = ErrorInfo::with_code(
-                format!("认证失败：{}", msg),
-                error_type,
-                error_code,
-            );
+            let error_info =
+                ErrorInfo::with_code(format!("认证失败：{}", msg), error_type, error_code);
             state.ui.screen = Screen::ErrorPopup {
                 error: error_info,
                 previous_screen: Box::new(Screen::Normal),
@@ -495,11 +528,8 @@ pub fn handle_api_error_from_app_error(state: &mut App, error: crate::error::App
         }
         AppError::Network(e) => {
             state.auth.is_token_expired = false;
-            let error_info = ErrorInfo::with_code(
-                format!("网络错误：{}", e),
-                error_type,
-                error_code,
-            );
+            let error_info =
+                ErrorInfo::with_code(format!("网络错误：{}", e), error_type, error_code);
             state.ui.screen = Screen::ErrorPopup {
                 error: error_info,
                 previous_screen: Box::new(Screen::Normal),
@@ -507,11 +537,8 @@ pub fn handle_api_error_from_app_error(state: &mut App, error: crate::error::App
         }
         AppError::NotFound(path) => {
             state.auth.is_token_expired = false;
-            let error_info = ErrorInfo::with_code(
-                format!("路径不存在：{}", path),
-                error_type,
-                error_code,
-            );
+            let error_info =
+                ErrorInfo::with_code(format!("路径不存在：{}", path), error_type, error_code);
             state.ui.screen = Screen::ErrorPopup {
                 error: error_info,
                 previous_screen: Box::new(Screen::Normal),
@@ -519,11 +546,8 @@ pub fn handle_api_error_from_app_error(state: &mut App, error: crate::error::App
         }
         AppError::ApiError(msg) => {
             state.auth.is_token_expired = false;
-            let error_info = ErrorInfo::with_code(
-                format!("API 错误：{}", msg),
-                error_type,
-                error_code,
-            );
+            let error_info =
+                ErrorInfo::with_code(format!("API 错误：{}", msg), error_type, error_code);
             state.ui.screen = Screen::ErrorPopup {
                 error: error_info,
                 previous_screen: Box::new(Screen::Normal),
@@ -531,11 +555,7 @@ pub fn handle_api_error_from_app_error(state: &mut App, error: crate::error::App
         }
         _ => {
             state.auth.is_token_expired = false;
-            let error_info = ErrorInfo::with_code(
-                format!("{}", error),
-                error_type,
-                error_code,
-            );
+            let error_info = ErrorInfo::with_code(format!("{}", error), error_type, error_code);
             state.ui.screen = Screen::ErrorPopup {
                 error: error_info,
                 previous_screen: Box::new(Screen::Normal),
@@ -554,7 +574,9 @@ pub fn handle_api_error(state: &mut App, error: Box<dyn std::error::Error + 'sta
 /// Clear error state and return to previous screen.
 pub fn clear_error(state: &mut App) {
     let previous_screen = match &state.ui.screen {
-        Screen::ErrorPopup { previous_screen, .. } => (**previous_screen).clone(),
+        Screen::ErrorPopup {
+            previous_screen, ..
+        } => (**previous_screen).clone(),
         _ => Screen::Normal,
     };
     state.ui.screen = previous_screen;
@@ -563,7 +585,9 @@ pub fn clear_error(state: &mut App) {
 /// Clear error state and prepare for re-login.
 pub fn clear_error_and_prepare_relogin(state: &mut App) {
     let _previous_screen = match &state.ui.screen {
-        Screen::ErrorPopup { previous_screen, .. } => (**previous_screen).clone(),
+        Screen::ErrorPopup {
+            previous_screen, ..
+        } => (**previous_screen).clone(),
         _ => Screen::Normal,
     };
     state.ui.screen = Screen::LoginScreen;
@@ -610,7 +634,7 @@ pub fn get_spinner_char(state: &App) -> char {
 // Rename Handler Functions (extracted from App impl)
 // ============================================================================
 
-use crate::state::{RenameMode, UnifiedFocus, RegexFocus};
+use crate::state::{RegexFocus, RenameMode, UnifiedFocus};
 
 // Mode selection
 pub fn open_rename_popup(state: &mut App) {
@@ -631,7 +655,10 @@ pub fn select_rename_mode(state: &mut App, mode: RenameMode) {
 
 pub fn select_next_rename_mode(state: &mut App) {
     let modes = RenameMode::all();
-    let current_idx = modes.iter().position(|&m| m == state.rename.mode_selection.selected_mode).unwrap_or(0);
+    let current_idx = modes
+        .iter()
+        .position(|&m| m == state.rename.mode_selection.selected_mode)
+        .unwrap_or(0);
     let next_idx = (current_idx + 1) % modes.len();
     state.rename.mode_selection.selected_mode = modes[next_idx];
     generate_rename_preview(state);
@@ -639,8 +666,15 @@ pub fn select_next_rename_mode(state: &mut App) {
 
 pub fn select_previous_rename_mode(state: &mut App) {
     let modes = RenameMode::all();
-    let current_idx = modes.iter().position(|&m| m == state.rename.mode_selection.selected_mode).unwrap_or(0);
-    let prev_idx = if current_idx == 0 { modes.len() - 1 } else { current_idx - 1 };
+    let current_idx = modes
+        .iter()
+        .position(|&m| m == state.rename.mode_selection.selected_mode)
+        .unwrap_or(0);
+    let prev_idx = if current_idx == 0 {
+        modes.len() - 1
+    } else {
+        current_idx - 1
+    };
     state.rename.mode_selection.selected_mode = modes[prev_idx];
     generate_rename_preview(state);
 }
@@ -659,28 +693,62 @@ pub fn generate_rename_preview(state: &mut App) {
     if let Some(file) = selected_file {
         if let Some(episode_info) = parser.parse(&file.name) {
             let new_name = match state.rename.mode_selection.selected_mode {
-                RenameMode::Smart => {
-                    parser.generate_name(&episode_info, "{title}.S{season}E{episode}",
-                        &file.name.rsplit('.').next().map(|e| format!(".{}", e)).unwrap_or_default())
-                }
+                RenameMode::Smart => parser.generate_name(
+                    &episode_info,
+                    "{title}.S{season}E{episode}",
+                    &file
+                        .name
+                        .rsplit('.')
+                        .next()
+                        .map(|e| format!(".{}", e))
+                        .unwrap_or_default(),
+                ),
                 RenameMode::Manual => file.name.clone(),
-                RenameMode::Unified => format!("{}_{:02}", episode_info.title, episode_info.episode),
+                RenameMode::Unified => {
+                    format!("{}_{:02}", episode_info.title, episode_info.episode)
+                }
                 RenameMode::Regex => file.name.clone(),
             };
-            state.rename.mode_selection.preview.push(format!("{} -> {}", file.name, new_name));
+            state
+                .rename
+                .mode_selection
+                .preview
+                .push(format!("{} -> {}", file.name, new_name));
         } else {
-            state.rename.mode_selection.preview.push(format!("{} (无法识别)", file.name));
+            state
+                .rename
+                .mode_selection
+                .preview
+                .push(format!("{} (无法识别)", file.name));
         }
     } else if state.navigation.files.is_empty() {
-        state.rename.mode_selection.preview.push("没有可重命名的文件".to_string());
+        state
+            .rename
+            .mode_selection
+            .preview
+            .push("没有可重命名的文件".to_string());
     } else {
         for file in &state.navigation.files {
             if let Some(episode_info) = parser.parse(&file.name) {
-                let ext = file.name.rsplit('.').next().map(|e| format!(".{}", e)).unwrap_or_default();
-                let new_name = parser.generate_name(&episode_info, "{title}.S{season}E{episode}", &ext);
-                state.rename.mode_selection.preview.push(format!("{} -> {}", file.name, new_name));
+                let ext = file
+                    .name
+                    .rsplit('.')
+                    .next()
+                    .map(|e| format!(".{}", e))
+                    .unwrap_or_default();
+                let new_name =
+                    parser.generate_name(&episode_info, "{title}.S{season}E{episode}", &ext);
+                state
+                    .rename
+                    .mode_selection
+                    .preview
+                    .push(format!("{} -> {}", file.name, new_name));
             } else {
-                state.rename.mode_selection.preview.push(format!("{} (无法识别)", file.name));
+                state
+                    .rename
+                    .mode_selection
+                    .preview
+                    .push(format!("{} (无法识别)", file.name));
             }
         }
     }
@@ -695,10 +763,19 @@ pub fn execute_smart_rename(state: &mut App) {
 
     for file in &state.navigation.files {
         if let Some(episode_info) = parser.parse(&file.name) {
-            let ext = file.name.rsplit('.').next().map(|e| format!(".{}", e)).unwrap_or_default();
+            let ext = file
+                .name
+                .rsplit('.')
+                .next()
+                .map(|e| format!(".{}", e))
+                .unwrap_or_default();
             let new_name = parser.generate_name(&episode_info, "{title}.S{season}E{episode}", &ext);
             if new_name != file.name {
-                state.rename.smart.results.push((file.name.clone(), new_name, true));
+                state
+                    .rename
+                    .smart
+                    .results
+                    .push((file.name.clone(), new_name, true));
             }
         }
     }
@@ -838,24 +915,39 @@ pub fn generate_unified_preview(state: &mut App) {
 
     for (i, file) in state.navigation.files.iter().take(5).enumerate() {
         let episode = start_episode + i as u32;
-        let ext = file.name.rsplit('.').next().map(|e| format!(".{}", e)).unwrap_or_default();
+        let ext = file
+            .name
+            .rsplit('.')
+            .next()
+            .map(|e| format!(".{}", e))
+            .unwrap_or_default();
 
         let s = format!("{:02}", season);
         let e = format!("{:02}", episode);
         let new_name = format!(
             "{}{}",
-            state.rename.unified.pattern
+            state
+                .rename
+                .unified
+                .pattern
                 .replace("{title}", &show_name)
                 .replace("{season}", &s)
                 .replace("{episode}", &e),
             ext
         );
 
-        state.rename.unified.preview.push(format!("{} -> {}", file.name, new_name));
+        state
+            .rename
+            .unified
+            .preview
+            .push(format!("{} -> {}", file.name, new_name));
     }
 
     if state.navigation.files.len() > 5 {
-        state.rename.unified.preview.push(format!("... 还有 {} 个文件", state.navigation.files.len() - 5));
+        state.rename.unified.preview.push(format!(
+            "... 还有 {} 个文件",
+            state.navigation.files.len() - 5
+        ));
     }
 }
 
@@ -887,13 +979,21 @@ pub fn execute_unified_rename(state: &mut App) -> Vec<(String, String, bool)> {
 
     for (i, file) in state.navigation.files.iter().enumerate() {
         let episode = start_episode + i as u32;
-        let ext = file.name.rsplit('.').next().map(|e| format!(".{}", e)).unwrap_or_default();
+        let ext = file
+            .name
+            .rsplit('.')
+            .next()
+            .map(|e| format!(".{}", e))
+            .unwrap_or_default();
 
         let s = format!("{:02}", season);
         let e = format!("{:02}", episode);
         let new_name = format!(
             "{}{}",
-            state.rename.unified.pattern
+            state
+                .rename
+                .unified
+                .pattern
                 .replace("{title}", &show_name)
                 .replace("{season}", &s)
                 .replace("{episode}", &e),
@@ -901,7 +1001,11 @@ pub fn execute_unified_rename(state: &mut App) -> Vec<(String, String, bool)> {
         );
 
         if new_name != file.name {
-            state.rename.unified.results.push((file.name.clone(), new_name, true));
+            state
+                .rename
+                .unified
+                .results
+                .push((file.name.clone(), new_name, true));
         }
     }
 
@@ -961,9 +1065,15 @@ pub fn generate_regex_preview(state: &mut App) {
 
     if let Ok(re) = regex::Regex::new(&state.rename.regex.find) {
         for file in &state.navigation.files {
-            let new_name = re.replace_all(&file.name, &state.rename.regex.replace).to_string();
+            let new_name = re
+                .replace_all(&file.name, &state.rename.regex.replace)
+                .to_string();
             if new_name != file.name {
-                state.rename.regex.preview.push((file.name.clone(), new_name));
+                state
+                    .rename
+                    .regex
+                    .preview
+                    .push((file.name.clone(), new_name));
             }
         }
     }
@@ -974,9 +1084,15 @@ pub fn execute_regex_rename(state: &mut App) -> Vec<(String, String, bool)> {
 
     if let Ok(re) = regex::Regex::new(&state.rename.regex.find) {
         for file in &state.navigation.files {
-            let new_name = re.replace_all(&file.name, &state.rename.regex.replace).to_string();
+            let new_name = re
+                .replace_all(&file.name, &state.rename.regex.replace)
+                .to_string();
             if new_name != file.name {
-                state.rename.regex.results.push((file.name.clone(), new_name, true));
+                state
+                    .rename
+                    .regex
+                    .results
+                    .push((file.name.clone(), new_name, true));
             }
         }
     }
@@ -1034,8 +1150,8 @@ pub fn start_folder_rename(state: &mut App) {
 
     // Calculate directory index (account for ".." parent entry)
     // Per Pitfall 1 in RESEARCH.md: when current_path != "/", there's a ".." entry at index 0
-    let has_parent = state.navigation.current_path != "/"
-        && !state.navigation.current_path.is_empty();
+    let has_parent =
+        state.navigation.current_path != "/" && !state.navigation.current_path.is_empty();
     let dir_index = if has_parent {
         state.navigation.selected_index.saturating_sub(1)
     } else {
@@ -1061,10 +1177,8 @@ pub fn submit_folder_rename(state: &mut App) {
     let new_name = state.rename.folder.input.trim();
 
     // Validate per D-04 to D-08
-    let validation_error = crate::validate::validate_folder_name(
-        new_name,
-        &state.navigation.directories,
-    );
+    let validation_error =
+        crate::validate::validate_folder_name(new_name, &state.navigation.directories);
 
     if let Some(error) = validation_error {
         state.rename.folder.validation_error = Some(error);
@@ -1106,23 +1220,36 @@ pub fn delete_last_folder_rename_char(state: &mut App) {
 #[allow(dead_code)]
 pub fn is_video_file(filename: &str) -> bool {
     let video_extensions = [
-        "mp4", "mkv", "avi", "mov", "wmv", "flv", "webm",
-        "m4v", "mpeg", "mpg", "3gp", "rmvb", "rm",
+        "mp4", "mkv", "avi", "mov", "wmv", "flv", "webm", "m4v", "mpeg", "mpg", "3gp", "rmvb", "rm",
     ];
 
-    filename.rsplit('.').next().map(|ext| {
-        video_extensions.iter().any(|&v| v.eq_ignore_ascii_case(ext))
-    }).unwrap_or(false)
+    filename
+        .rsplit('.')
+        .next()
+        .map(|ext| {
+            video_extensions
+                .iter()
+                .any(|&v| v.eq_ignore_ascii_case(ext))
+        })
+        .unwrap_or(false)
 }
 
 /// Delete a character from the current unified rename input field.
 fn delete_unified_char(state: &mut App) {
     use crate::state::UnifiedFocus;
     match state.rename.unified.focus {
-        UnifiedFocus::ShowName => { state.rename.unified.show_name.pop(); }
-        UnifiedFocus::Season => { state.rename.unified.season.pop(); }
-        UnifiedFocus::StartEpisode => { state.rename.unified.start_episode.pop(); }
-        UnifiedFocus::Pattern => { state.rename.unified.pattern.pop(); }
+        UnifiedFocus::ShowName => {
+            state.rename.unified.show_name.pop();
+        }
+        UnifiedFocus::Season => {
+            state.rename.unified.season.pop();
+        }
+        UnifiedFocus::StartEpisode => {
+            state.rename.unified.start_episode.pop();
+        }
+        UnifiedFocus::Pattern => {
+            state.rename.unified.pattern.pop();
+        }
     }
 }
 
@@ -1130,8 +1257,12 @@ fn delete_unified_char(state: &mut App) {
 fn delete_regex_char(state: &mut App) {
     use crate::state::RegexFocus;
     match state.rename.regex.focus {
-        RegexFocus::Find => { state.rename.regex.find.pop(); }
-        RegexFocus::Replace => { state.rename.regex.replace.pop(); }
+        RegexFocus::Find => {
+            state.rename.regex.find.pop();
+        }
+        RegexFocus::Replace => {
+            state.rename.regex.replace.pop();
+        }
     }
 }
 

@@ -2,11 +2,11 @@
 //! Tests for the update() function and state transitions.
 //! These tests validate that messages produce correct state changes.
 
-use openlist_tui::app::App;
-use openlist_tui::message::{Message, NavMsg, AuthMsg, RenameMsg, UiMsg, AsyncMsg};
-use openlist_tui::update::update;
-use openlist_tui::state::{Screen, ErrorInfo};
 use openlist_tui::api::types::FileItem;
+use openlist_tui::app::App;
+use openlist_tui::message::{AsyncMsg, AuthMsg, Message, NavMsg, RenameMsg, UiMsg};
+use openlist_tui::state::{ErrorInfo, Screen};
+use openlist_tui::update::update;
 
 fn create_test_app() -> App {
     App::new()
@@ -139,7 +139,10 @@ fn test_update_async_login_result_success() {
     app.auth.username_input = "testuser".to_string();
     app.ui.screen = Screen::LoginScreen;
 
-    update(&mut app, AsyncMsg::LoginResult(Ok("test-token".to_string())).into());
+    update(
+        &mut app,
+        AsyncMsg::LoginResult(Ok("test-token".to_string())).into(),
+    );
 
     assert!(app.auth.is_authenticated);
     assert_eq!(app.auth.current_user, Some("testuser".to_string()));
@@ -154,7 +157,10 @@ fn test_update_async_login_result_failure() {
     app.ui.screen = Screen::LoginScreen;
 
     use openlist_tui::error::AppError;
-    update(&mut app, AsyncMsg::LoginResult(Err(AppError::Auth("Invalid credentials".to_string()))).into());
+    update(
+        &mut app,
+        AsyncMsg::LoginResult(Err(AppError::Auth("Invalid credentials".to_string()))).into(),
+    );
 
     assert!(!app.auth.is_authenticated);
     assert!(matches!(app.ui.screen, Screen::ErrorPopup { .. }));
@@ -203,10 +209,16 @@ fn test_update_navigation_toggle_focus() {
     app.navigation.focus = openlist_tui::state::Focus::Directory;
 
     update(&mut app, NavMsg::ToggleFocus.into());
-    assert!(matches!(app.navigation.focus, openlist_tui::state::Focus::File));
+    assert!(matches!(
+        app.navigation.focus,
+        openlist_tui::state::Focus::File
+    ));
 
     update(&mut app, NavMsg::ToggleFocus.into());
-    assert!(matches!(app.navigation.focus, openlist_tui::state::Focus::Directory));
+    assert!(matches!(
+        app.navigation.focus,
+        openlist_tui::state::Focus::Directory
+    ));
 }
 
 #[test]
@@ -248,7 +260,10 @@ fn test_update_ui_loading_state() {
     // Test loading state management
     let mut app = create_test_app();
 
-    update(&mut app, UiMsg::StartLoading("Loading...".to_string()).into());
+    update(
+        &mut app,
+        UiMsg::StartLoading("Loading...".to_string()).into(),
+    );
     assert_eq!(app.ui.loading_message, Some("Loading...".to_string()));
 
     update(&mut app, UiMsg::StopLoading.into());
@@ -331,7 +346,10 @@ fn test_update_ui_start_stop_loading() {
     let mut app = create_test_app();
 
     // Start loading
-    update(&mut app, UiMsg::StartLoading("Loading...".to_string()).into());
+    update(
+        &mut app,
+        UiMsg::StartLoading("Loading...".to_string()).into(),
+    );
     assert_eq!(app.ui.loading_message, Some("Loading...".to_string()));
     assert!(app.ui.loading_progress.is_none());
 
@@ -348,12 +366,21 @@ fn test_update_async_login_result_success_full() {
     app.auth.username_input = "testuser".to_string();
     app.ui.screen = Screen::LoginScreen;
 
-    update(&mut app, AsyncMsg::LoginResult(Ok("test-token".to_string())).into());
+    update(
+        &mut app,
+        AsyncMsg::LoginResult(Ok("test-token".to_string())).into(),
+    );
 
     // Per D-02: Verify authentication state
-    assert!(app.auth.is_authenticated, "Should be authenticated after successful login");
+    assert!(
+        app.auth.is_authenticated,
+        "Should be authenticated after successful login"
+    );
     assert_eq!(app.auth.current_user, Some("testuser".to_string()));
-    assert!(matches!(app.ui.screen, Screen::Normal), "Should return to Normal screen");
+    assert!(
+        matches!(app.ui.screen, Screen::Normal),
+        "Should return to Normal screen"
+    );
 
     // Verify token is saved
     assert_eq!(app.config.token, Some("test-token".to_string()));
@@ -406,9 +433,11 @@ fn test_update_async_list_directory() {
     // Verify files contain only video files (filtered by is_video_file)
     assert_eq!(app.navigation.files.len(), 2);
     assert!(app.navigation.files.iter().all(|i| !i.is_dir));
-    assert!(app.navigation.files.iter().all(|i|
-        i.name.ends_with(".mp4") || i.name.ends_with(".mkv")
-    ));
+    assert!(app
+        .navigation
+        .files
+        .iter()
+        .all(|i| i.name.ends_with(".mp4") || i.name.ends_with(".mkv")));
 }
 
 #[test]
@@ -453,10 +482,19 @@ fn test_update_async_login_result_clears_inputs() {
     app.auth.password_input = "testpass".to_string();
     app.ui.screen = Screen::LoginScreen;
 
-    update(&mut app, AsyncMsg::LoginResult(Ok("token123".to_string())).into());
+    update(
+        &mut app,
+        AsyncMsg::LoginResult(Ok("token123".to_string())).into(),
+    );
 
-    assert!(app.auth.username_input.is_empty(), "Username should be cleared");
-    assert!(app.auth.password_input.is_empty(), "Password should be cleared");
+    assert!(
+        app.auth.username_input.is_empty(),
+        "Username should be cleared"
+    );
+    assert!(
+        app.auth.password_input.is_empty(),
+        "Password should be cleared"
+    );
     assert!(matches!(app.ui.screen, Screen::Normal));
 }
 

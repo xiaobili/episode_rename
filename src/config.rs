@@ -1,7 +1,7 @@
+use crate::error::{AppError, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use crate::error::{AppError, Result};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -24,8 +24,8 @@ impl Default for Config {
 
 impl Config {
     pub fn config_dir() -> Result<PathBuf> {
-        let dir = dirs::config_dir()
-            .ok_or_else(|| AppError::Config("无法获取配置目录".to_string()))?;
+        let dir =
+            dirs::config_dir().ok_or_else(|| AppError::Config("无法获取配置目录".to_string()))?;
         Ok(dir.join("openlist-tui"))
     }
 
@@ -39,8 +39,7 @@ impl Config {
             return Ok(Self::default());
         }
         let content = fs::read_to_string(&path)?;
-        serde_json::from_str(&content)
-            .map_err(|e| AppError::Config(format!("解析配置失败：{}", e)))
+        serde_json::from_str(&content).map_err(|e| AppError::Config(format!("解析配置失败：{}", e)))
     }
 
     pub fn save(&self) -> Result<()> {

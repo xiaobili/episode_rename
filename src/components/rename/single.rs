@@ -43,13 +43,13 @@ pub fn render(frame: &mut Frame, rename: &RenameState) {
         .direction(Direction::Vertical)
         .margin(2)
         .constraints([
-            Constraint::Length(3),  // Title
-            Constraint::Length(1),  // Spacer
-            Constraint::Length(3),  // Current file name
-            Constraint::Length(1),  // Spacer
-            Constraint::Length(3),  // Input field
-            Constraint::Length(1),  // Spacer
-            Constraint::Length(2),  // Help text
+            Constraint::Length(3), // Title
+            Constraint::Length(1), // Spacer
+            Constraint::Length(3), // Current file name
+            Constraint::Length(1), // Spacer
+            Constraint::Length(3), // Input field
+            Constraint::Length(1), // Spacer
+            Constraint::Length(2), // Help text
         ])
         .split(area);
 
@@ -57,31 +57,41 @@ pub fn render(frame: &mut Frame, rename: &RenameState) {
 
     // Title
     let title = Paragraph::new("单文件重命名")
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
-        .block(Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Cyan)));
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Cyan)),
+        );
     frame.render_widget(title, popup[0]);
 
     // Current file name
-    let current_file = single.target.as_ref()
+    let current_file = single
+        .target
+        .as_ref()
         .map(|f| f.name.as_str())
         .unwrap_or("无文件");
     let file_label = Paragraph::new(format!("原文件名：{}", current_file))
         .style(Style::default().fg(Color::White))
-        .block(Block::default()
-            .borders(Borders::ALL)
-            .title("当前文件"));
+        .block(Block::default().borders(Borders::ALL).title("当前文件"));
     frame.render_widget(file_label, popup[2]);
 
     // Input field for new name
-    let input_style = Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD);
+    let input_style = Style::default()
+        .fg(Color::Yellow)
+        .add_modifier(Modifier::BOLD);
     let input = Paragraph::new(single.input.as_str())
         .style(input_style)
-        .block(Block::default()
-            .borders(Borders::ALL)
-            .title("新文件名")
-            .border_style(Style::default().fg(Color::Green)));
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("新文件名")
+                .border_style(Style::default().fg(Color::Green)),
+        );
     frame.render_widget(input, popup[4]);
 
     // Help text

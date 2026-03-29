@@ -27,20 +27,20 @@
 //! }
 //! ```
 
-pub mod navigation;
+pub mod async_msg;
 pub mod auth;
+pub mod error;
+pub mod navigation;
 pub mod rename;
 pub mod ui;
-pub mod async_msg;
-pub mod error;
 
 // Re-export domain enums for convenience
-pub use navigation::NavMsg;
+pub use async_msg::AsyncMsg;
 pub use auth::AuthMsg;
+pub use error::ErrorMsg;
+pub use navigation::NavMsg;
 pub use rename::RenameMsg;
 pub use ui::UiMsg;
-pub use async_msg::AsyncMsg;
-pub use error::ErrorMsg;
 
 use crate::state::ErrorInfo;
 

@@ -3,12 +3,12 @@
 //! Renders the bottom help bar showing available keyboard shortcuts.
 //! Uses state-slice signature per D-03 (no state needed - static content).
 
+use super::style::COLOR_WHITE;
 use ratatui::{
     style::Style,
     widgets::{Block, Borders, Paragraph},
     Frame,
 };
-use super::style::COLOR_WHITE;
 
 /// Renders the help bar with keybinding hints.
 ///

@@ -152,15 +152,16 @@ fn test_episode_detection_in_multiple_files() {
 fn test_preview_generation() {
     let parser = EpisodeParser::new();
 
-    let files = vec![
-        "Office.US.S01E01.mkv",
-        "Office.US.S01E02.mkv",
-    ];
+    let files = vec!["Office.US.S01E01.mkv", "Office.US.S01E02.mkv"];
 
     let mut preview = Vec::new();
     for file in files {
         if let Some(info) = parser.parse(file) {
-            let ext = file.rsplit('.').next().map(|e| format!(".{}", e)).unwrap_or_default();
+            let ext = file
+                .rsplit('.')
+                .next()
+                .map(|e| format!(".{}", e))
+                .unwrap_or_default();
             let new_name = parser.generate_name(&info, "{title}.S{season}E{episode}", &ext);
             preview.push(format!("{} -> {}", file, new_name));
         }
@@ -176,9 +177,13 @@ fn test_title_extraction() {
     let parser = EpisodeParser::new();
 
     // Test that title is extracted correctly without episode pattern
-    let result = parser.parse("The.Big.Bang.Theory.S03E10.720p.HDTV.x264.mkv").unwrap();
+    let result = parser
+        .parse("The.Big.Bang.Theory.S03E10.720p.HDTV.x264.mkv")
+        .unwrap();
     assert_eq!(result.title, "The.Big.Bang.Theory");
 
-    let result = parser.parse("Stranger.Things.2x03.1080p.NF.WEBRip.DD5.1.x264.mkv").unwrap();
+    let result = parser
+        .parse("Stranger.Things.2x03.1080p.NF.WEBRip.DD5.1.x264.mkv")
+        .unwrap();
     assert!(result.title.contains("Stranger"));
 }

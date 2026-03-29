@@ -17,27 +17,27 @@
 //! - `rename` module: Rename popup components (mode, manual, unified, regex, single)
 //! - `render` function: Entry point that creates layout and calls components
 
-pub mod style;
-pub mod status_bar;
-pub mod path_bar;
-pub mod help_bar;
 pub mod directory_list;
-pub mod file_list;
-pub mod login_dialog;
-pub mod loading_overlay;
 pub mod error_popup;
+pub mod file_list;
+pub mod help_bar;
+pub mod loading_overlay;
+pub mod login_dialog;
+pub mod path_bar;
 pub mod rename;
+pub mod status_bar;
+pub mod style;
 
 // Re-export style utilities for convenience
 pub use style::*;
 
+use crate::app::App;
+use crate::config::Config;
+use crate::state::{NavigationState, Screen};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     Frame,
 };
-use crate::app::App;
-use crate::config::Config;
-use crate::state::{NavigationState, Screen};
 
 /// Main render function that orchestrates all UI components.
 ///
@@ -67,10 +67,10 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3),   // Status bar
-            Constraint::Length(1),   // Path bar
-            Constraint::Min(10),     // Main content (directory + file lists)
-            Constraint::Length(3),   // Help bar
+            Constraint::Length(3), // Status bar
+            Constraint::Length(1), // Path bar
+            Constraint::Min(10),   // Main content (directory + file lists)
+            Constraint::Length(3), // Help bar
         ])
         .split(frame.area());
 

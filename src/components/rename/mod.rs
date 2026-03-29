@@ -14,9 +14,9 @@
 //! ## Architecture
 //! Per D-03, each component uses state-slice signatures for testability.
 
-pub mod mode;
+pub mod folder;
 pub mod manual;
-pub mod unified;
+pub mod mode;
 pub mod regex;
 pub mod single;
-pub mod folder;
+pub mod unified;

@@ -2,12 +2,12 @@
 //! Integration tests for state transitions through the message system.
 //! These tests validate complete user flows from key press to state change.
 
-use openlist_tui::app::App;
-use openlist_tui::message::{Message, NavMsg, AuthMsg, UiMsg, AsyncMsg};
-use openlist_tui::update::update;
-use openlist_tui::state::{Screen, ErrorInfo, Focus};
 use openlist_tui::api::types::FileItem;
+use openlist_tui::app::App;
+use openlist_tui::message::{AsyncMsg, AuthMsg, Message, NavMsg, UiMsg};
+use openlist_tui::state::{ErrorInfo, Focus, Screen};
 use openlist_tui::task::PendingTask;
+use openlist_tui::update::update;
 
 fn create_test_app() -> App {
     App::new()
@@ -62,10 +62,16 @@ fn test_navigation_selection_bounds_invariant() {
     app.navigation.selected_index = 0;
 
     update(&mut app, NavMsg::SelectNext.into());
-    assert_eq!(app.navigation.selected_index, 0, "selected_index should be 0 for empty list");
+    assert_eq!(
+        app.navigation.selected_index, 0,
+        "selected_index should be 0 for empty list"
+    );
 
     update(&mut app, NavMsg::SelectPrevious.into());
-    assert_eq!(app.navigation.selected_index, 0, "selected_index should be 0 for empty list");
+    assert_eq!(
+        app.navigation.selected_index, 0,
+        "selected_index should be 0 for empty list"
+    );
 }
 
 #[test]
@@ -93,7 +99,10 @@ fn test_screen_transition_login_flow() {
     update(&mut app, AuthMsg::InputPassword('p').into());
 
     // Simulate successful async login result
-    update(&mut app, AsyncMsg::LoginResult(Ok("test-token".to_string())).into());
+    update(
+        &mut app,
+        AsyncMsg::LoginResult(Ok("test-token".to_string())).into(),
+    );
     assert!(matches!(app.ui.screen, Screen::Normal));
     assert!(app.auth.is_authenticated);
 }
@@ -107,7 +116,10 @@ fn test_async_state_lifecycle() {
     assert!(matches!(app.async_state.pending_task, PendingTask::Idle));
 
     // UiMsg::StartLoading -> pending_task shows loading
-    update(&mut app, UiMsg::StartLoading("Loading...".to_string()).into());
+    update(
+        &mut app,
+        UiMsg::StartLoading("Loading...".to_string()).into(),
+    );
     assert!(app.ui.loading_message.is_some());
     assert_eq!(app.ui.loading_message.as_deref(), Some("Loading..."));
 
@@ -117,12 +129,18 @@ fn test_async_state_lifecycle() {
     assert!(app.ui.loading_message.is_none());
 
     // Test that error also stops loading (per D-09)
-    update(&mut app, UiMsg::StartLoading("Loading...".to_string()).into());
+    update(
+        &mut app,
+        UiMsg::StartLoading("Loading...".to_string()).into(),
+    );
     assert!(app.ui.loading_message.is_some());
 
     let error_info = ErrorInfo::new("Test error".to_string());
     update(&mut app, Message::Error(error_info));
-    assert!(app.ui.loading_message.is_none(), "Error should stop loading state");
+    assert!(
+        app.ui.loading_message.is_none(),
+        "Error should stop loading state"
+    );
     assert!(matches!(app.async_state.pending_task, PendingTask::Idle));
 }
 
@@ -139,7 +157,11 @@ fn test_error_popup_returns_to_previous_screen() {
     update(&mut app, Message::Error(error_info.clone()));
     assert!(matches!(app.ui.screen, Screen::ErrorPopup { .. }));
 
-    if let Screen::ErrorPopup { error, previous_screen } = &app.ui.screen {
+    if let Screen::ErrorPopup {
+        error,
+        previous_screen,
+    } = &app.ui.screen
+    {
         assert_eq!(error.message, "Test error");
         assert!(matches!(**previous_screen, Screen::RenameModeSelection));
     } else {
@@ -181,7 +203,10 @@ fn test_login_flow_transitions() {
 
     // 4. (Async spawn happens in main.rs)
     // 5. AsyncMsg::LoginResult(Ok(token)) -> authenticated state
-    update(&mut app, AsyncMsg::LoginResult(Ok("test-token".to_string())).into());
+    update(
+        &mut app,
+        AsyncMsg::LoginResult(Ok("test-token".to_string())).into(),
+    );
     assert!(app.auth.is_authenticated);
     assert!(matches!(app.ui.screen, Screen::Normal));
 }
@@ -213,8 +238,8 @@ fn test_navigation_flow_transitions() {
 
 #[test]
 fn test_rename_mode_selection_flow() {
-    use openlist_tui::state::RenameMode;
     use openlist_tui::message::RenameMsg;
+    use openlist_tui::state::RenameMode;
 
     // Integration test: Rename mode selection through messages
     let mut app = create_authenticated_app();
@@ -450,5 +475,8 @@ fn test_message_dispatch_is_deterministic() {
     update(&mut app1, NavMsg::SelectNext.into());
     update(&mut app2, NavMsg::SelectNext.into());
 
-    assert_eq!(app1.navigation.selected_index, app2.navigation.selected_index);
+    assert_eq!(
+        app1.navigation.selected_index,
+        app2.navigation.selected_index
+    );
 }

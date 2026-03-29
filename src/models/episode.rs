@@ -28,7 +28,10 @@ impl EpisodeParser {
     }
 
     pub fn parse(&self, filename: &str) -> Option<EpisodeInfo> {
-        let name = filename.rsplit_once('.').map(|(n, _)| n).unwrap_or(filename);
+        let name = filename
+            .rsplit_once('.')
+            .map(|(n, _)| n)
+            .unwrap_or(filename);
         for p in &self.patterns {
             if let Some(caps) = p.captures(name) {
                 if caps.len() >= 4 {

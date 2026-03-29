@@ -172,7 +172,10 @@ fn test_app_pending_task_integration() {
     };
 
     assert!(app.async_state.pending_task.is_loading());
-    assert_eq!(app.async_state.pending_task.get_message(), Some("Connecting..."));
+    assert_eq!(
+        app.async_state.pending_task.get_message(),
+        Some("Connecting...")
+    );
 
     // Advance spinner through pending task
     app.async_state.pending_task.advance_spinner();
@@ -188,7 +191,10 @@ fn test_app_pending_task_integration() {
     };
 
     assert_eq!(app.async_state.pending_task.get_progress(), Some((10, 20)));
-    assert_eq!(app.async_state.pending_task.get_message(), Some("Renaming..."));
+    assert_eq!(
+        app.async_state.pending_task.get_message(),
+        Some("Renaming...")
+    );
 }
 
 #[test]

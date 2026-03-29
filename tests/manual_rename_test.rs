@@ -1,5 +1,5 @@
-use openlist_tui::app::{App, Screen};
 use openlist_tui::api::types::FileItem;
+use openlist_tui::app::{App, Screen};
 use openlist_tui::update::*;
 
 #[test]
@@ -8,9 +8,21 @@ fn test_start_manual_rename_initializes_state() {
 
     // Add some mock files
     app.navigation.files = vec![
-        FileItem { name: "Show.S01E01.mkv".to_string(), is_dir: false, size: Some(1000) },
-        FileItem { name: "Show.S01E02.mkv".to_string(), is_dir: false, size: Some(1000) },
-        FileItem { name: "Show.S01E03.mkv".to_string(), is_dir: false, size: Some(1000) },
+        FileItem {
+            name: "Show.S01E01.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
+        FileItem {
+            name: "Show.S01E02.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
+        FileItem {
+            name: "Show.S01E03.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
     ];
 
     start_manual_rename(&mut app);
@@ -36,8 +48,16 @@ fn test_submit_manual_rename() {
     let mut app = App::new();
 
     app.navigation.files = vec![
-        FileItem { name: "Show.S01E01.mkv".to_string(), is_dir: false, size: Some(1000) },
-        FileItem { name: "Show.S01E02.mkv".to_string(), is_dir: false, size: Some(1000) },
+        FileItem {
+            name: "Show.S01E01.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
+        FileItem {
+            name: "Show.S01E02.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
     ];
 
     start_manual_rename(&mut app);
@@ -50,7 +70,14 @@ fn test_submit_manual_rename() {
 
     // Should have recorded the rename
     assert_eq!(app.rename.manual.results.len(), 1);
-    assert_eq!(app.rename.manual.results[0], ("Show.S01E01.mkv".to_string(), "New.Name.S01E01.mkv".to_string(), true));
+    assert_eq!(
+        app.rename.manual.results[0],
+        (
+            "Show.S01E01.mkv".to_string(),
+            "New.Name.S01E01.mkv".to_string(),
+            true
+        )
+    );
 
     // Should have moved to next file
     assert_eq!(app.rename.manual.index, 1);
@@ -62,9 +89,21 @@ fn test_skip_manual_rename() {
     let mut app = App::new();
 
     app.navigation.files = vec![
-        FileItem { name: "Show.S01E01.mkv".to_string(), is_dir: false, size: Some(1000) },
-        FileItem { name: "Show.S01E02.mkv".to_string(), is_dir: false, size: Some(1000) },
-        FileItem { name: "Show.S01E03.mkv".to_string(), is_dir: false, size: Some(1000) },
+        FileItem {
+            name: "Show.S01E01.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
+        FileItem {
+            name: "Show.S01E02.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
+        FileItem {
+            name: "Show.S01E03.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
     ];
 
     start_manual_rename(&mut app);
@@ -85,8 +124,16 @@ fn test_manual_rename_completes_all_files() {
     let mut app = App::new();
 
     app.navigation.files = vec![
-        FileItem { name: "Show.S01E01.mkv".to_string(), is_dir: false, size: Some(1000) },
-        FileItem { name: "Show.S01E02.mkv".to_string(), is_dir: false, size: Some(1000) },
+        FileItem {
+            name: "Show.S01E01.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
+        FileItem {
+            name: "Show.S01E02.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
     ];
 
     start_manual_rename(&mut app);
@@ -111,9 +158,11 @@ fn test_manual_rename_completes_all_files() {
 fn test_cancel_manual_rename() {
     let mut app = App::new();
 
-    app.navigation.files = vec![
-        FileItem { name: "Show.S01E01.mkv".to_string(), is_dir: false, size: Some(1000) },
-    ];
+    app.navigation.files = vec![FileItem {
+        name: "Show.S01E01.mkv".to_string(),
+        is_dir: false,
+        size: Some(1000),
+    }];
 
     start_manual_rename(&mut app);
     app.rename.manual.input = "New.Name.mkv".to_string();
@@ -133,9 +182,11 @@ fn test_cancel_manual_rename() {
 fn test_delete_last_manual_rename_char() {
     let mut app = App::new();
 
-    app.navigation.files = vec![
-        FileItem { name: "Show.S01E01.mkv".to_string(), is_dir: false, size: Some(1000) },
-    ];
+    app.navigation.files = vec![FileItem {
+        name: "Show.S01E01.mkv".to_string(),
+        is_dir: false,
+        size: Some(1000),
+    }];
 
     start_manual_rename(&mut app);
     app.rename.manual.input = "Test.mkv".to_string();
@@ -153,10 +204,26 @@ fn test_get_manual_rename_progress() {
     let mut app = App::new();
 
     app.navigation.files = vec![
-        FileItem { name: "S01E01.mkv".to_string(), is_dir: false, size: Some(1000) },
-        FileItem { name: "S01E02.mkv".to_string(), is_dir: false, size: Some(1000) },
-        FileItem { name: "S01E03.mkv".to_string(), is_dir: false, size: Some(1000) },
-        FileItem { name: "S01E04.mkv".to_string(), is_dir: false, size: Some(1000) },
+        FileItem {
+            name: "S01E01.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
+        FileItem {
+            name: "S01E02.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
+        FileItem {
+            name: "S01E03.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
+        FileItem {
+            name: "S01E04.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
     ];
 
     start_manual_rename(&mut app);
@@ -178,8 +245,16 @@ fn test_get_current_manual_rename_file() {
     let mut app = App::new();
 
     app.navigation.files = vec![
-        FileItem { name: "First.mkv".to_string(), is_dir: false, size: Some(1000) },
-        FileItem { name: "Second.mkv".to_string(), is_dir: false, size: Some(1000) },
+        FileItem {
+            name: "First.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
+        FileItem {
+            name: "Second.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
     ];
 
     start_manual_rename(&mut app);
@@ -200,8 +275,16 @@ fn test_manual_rename_same_name_not_recorded() {
     let mut app = App::new();
 
     app.navigation.files = vec![
-        FileItem { name: "Show.S01E01.mkv".to_string(), is_dir: false, size: Some(1000) },
-        FileItem { name: "Show.S01E02.mkv".to_string(), is_dir: false, size: Some(1000) },
+        FileItem {
+            name: "Show.S01E01.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
+        FileItem {
+            name: "Show.S01E02.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
     ];
 
     start_manual_rename(&mut app);
@@ -220,9 +303,11 @@ fn test_manual_rename_same_name_not_recorded() {
 fn test_manual_rename_empty_input_not_recorded() {
     let mut app = App::new();
 
-    app.navigation.files = vec![
-        FileItem { name: "Show.S01E01.mkv".to_string(), is_dir: false, size: Some(1000) },
-    ];
+    app.navigation.files = vec![FileItem {
+        name: "Show.S01E01.mkv".to_string(),
+        is_dir: false,
+        size: Some(1000),
+    }];
 
     start_manual_rename(&mut app);
 
@@ -238,13 +323,13 @@ fn test_manual_rename_empty_input_not_recorded() {
 fn test_take_manual_rename_results_clears() {
     let mut app = App::new();
 
-    app.navigation.files = vec![
-        FileItem { name: "S01E01.mkv".to_string(), is_dir: false, size: Some(1000) },
-    ];
+    app.navigation.files = vec![FileItem {
+        name: "S01E01.mkv".to_string(),
+        is_dir: false,
+        size: Some(1000),
+    }];
 
-    app.rename.manual.results = vec![
-        ("Old.mkv".to_string(), "New.mkv".to_string(), true),
-    ];
+    app.rename.manual.results = vec![("Old.mkv".to_string(), "New.mkv".to_string(), true)];
 
     // Take results
     let results = app.take_manual_rename_results();
@@ -258,9 +343,21 @@ fn test_manual_rename_state_transitions() {
     let mut app = App::new();
 
     app.navigation.files = vec![
-        FileItem { name: "A.mkv".to_string(), is_dir: false, size: Some(1000) },
-        FileItem { name: "B.mkv".to_string(), is_dir: false, size: Some(1000) },
-        FileItem { name: "C.mkv".to_string(), is_dir: false, size: Some(1000) },
+        FileItem {
+            name: "A.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
+        FileItem {
+            name: "B.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
+        FileItem {
+            name: "C.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
     ];
 
     // Initial state

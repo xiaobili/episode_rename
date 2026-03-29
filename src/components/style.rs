@@ -142,7 +142,9 @@ pub fn render_input_field(
     is_focused: bool,
 ) {
     let text_style = if is_focused {
-        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(Color::White)
     };
@@ -161,12 +163,12 @@ pub fn render_input_field(
     } else {
         text_style
     };
-    let para = Paragraph::new(display_text)
-        .style(text_color)
-        .block(Block::default()
+    let para = Paragraph::new(display_text).style(text_color).block(
+        Block::default()
             .borders(Borders::ALL)
             .title(label)
-            .border_style(border_style));
+            .border_style(border_style),
+    );
     frame.render_widget(para, area);
 }
 

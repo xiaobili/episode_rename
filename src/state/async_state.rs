@@ -1,4 +1,4 @@
-use crate::task::{TaskChannel, PendingTask};
+use crate::task::{PendingTask, TaskChannel};
 
 pub struct AsyncState {
     pub task_channel: TaskChannel,

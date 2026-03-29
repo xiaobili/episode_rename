@@ -1,7 +1,7 @@
 use openlist_tui::app::{App, Screen};
-use openlist_tui::state::ErrorInfo;
-use openlist_tui::error::AppError;
 use openlist_tui::config::Config;
+use openlist_tui::error::AppError;
+use openlist_tui::state::ErrorInfo;
 use openlist_tui::update::*;
 
 #[test]
@@ -49,7 +49,10 @@ fn test_handle_network_error() {
     let mut app = App::new();
 
     // Simulate network error
-    handle_api_error_from_app_error(&mut app, AppError::Network("connection refused".to_string()));
+    handle_api_error_from_app_error(
+        &mut app,
+        AppError::Network("connection refused".to_string()),
+    );
 
     assert!(matches!(app.ui.screen, Screen::ErrorPopup { .. }));
     assert!(!app.auth.is_token_expired);
@@ -140,17 +143,29 @@ fn test_app_error_is_network_error() {
 
 #[test]
 fn test_app_error_error_type() {
-    assert_eq!(AppError::Network("connection refused".to_string()).error_type(), "网络错误");
+    assert_eq!(
+        AppError::Network("connection refused".to_string()).error_type(),
+        "网络错误"
+    );
     assert_eq!(AppError::Auth("test".to_string()).error_type(), "认证错误");
     assert_eq!(AppError::TokenExpired.error_type(), "Token 过期");
-    assert_eq!(AppError::NotFound("path".to_string()).error_type(), "资源不存在");
-    assert_eq!(AppError::ApiError("error".to_string()).error_type(), "API 错误");
+    assert_eq!(
+        AppError::NotFound("path".to_string()).error_type(),
+        "资源不存在"
+    );
+    assert_eq!(
+        AppError::ApiError("error".to_string()).error_type(),
+        "API 错误"
+    );
 }
 
 #[test]
 fn test_app_error_error_code() {
     assert_eq!(AppError::TokenExpired.error_code(), Some(401));
-    assert_eq!(AppError::NotFound("path".to_string()).error_code(), Some(404));
+    assert_eq!(
+        AppError::NotFound("path".to_string()).error_code(),
+        Some(404)
+    );
     assert_eq!(AppError::Auth("test".to_string()).error_code(), None);
     assert_eq!(AppError::ApiError("error".to_string()).error_code(), None);
 }
@@ -224,7 +239,7 @@ fn test_error_detection_scenarios() {
 fn test_from_boxed_error_token_expired() {
     let err: Box<dyn std::error::Error> = Box::new(std::io::Error::new(
         std::io::ErrorKind::Other,
-        "401 Unauthorized"
+        "401 Unauthorized",
     ));
     let app_err = AppError::from_boxed_error(err);
     assert!(matches!(app_err, AppError::TokenExpired));
@@ -234,7 +249,7 @@ fn test_from_boxed_error_token_expired() {
 fn test_from_boxed_error_network() {
     let err: Box<dyn std::error::Error> = Box::new(std::io::Error::new(
         std::io::ErrorKind::Other,
-        "connection timeout"
+        "connection timeout",
     ));
     let app_err = AppError::from_boxed_error(err);
     assert!(matches!(app_err, AppError::Network(_)));
@@ -244,7 +259,7 @@ fn test_from_boxed_error_network() {
 fn test_from_boxed_error_default() {
     let err: Box<dyn std::error::Error> = Box::new(std::io::Error::new(
         std::io::ErrorKind::Other,
-        "some random error"
+        "some random error",
     ));
     let app_err = AppError::from_boxed_error(err);
     assert!(matches!(app_err, AppError::ApiError(_)));

@@ -1,6 +1,6 @@
-use tokio::sync::mpsc;
 use crate::api::types::FileItem;
 use crate::error::AppError;
+use tokio::sync::mpsc;
 
 pub type TaskId = u32;
 
@@ -53,12 +53,17 @@ impl PendingTask {
     }
 
     pub fn is_loading(&self) -> bool {
-        matches!(self, PendingTask::Loading { .. } | PendingTask::Renaming { .. })
+        matches!(
+            self,
+            PendingTask::Loading { .. } | PendingTask::Renaming { .. }
+        )
     }
 
     pub fn get_progress(&self) -> Option<(usize, usize)> {
         match self {
-            PendingTask::Renaming { completed, total, .. } => Some((*completed, *total)),
+            PendingTask::Renaming {
+                completed, total, ..
+            } => Some((*completed, *total)),
             _ => None,
         }
     }

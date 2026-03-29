@@ -15,7 +15,12 @@ use crate::update::update;
 
 /// Start auto-login if token exists in config.
 pub fn start_auto_login(app: &mut App) {
-    let has_token = app.config.token.as_ref().map(|t| !t.is_empty()).unwrap_or(false);
+    let has_token = app
+        .config
+        .token
+        .as_ref()
+        .map(|t| !t.is_empty())
+        .unwrap_or(false);
     if !has_token {
         return;
     }
@@ -111,12 +116,7 @@ fn collect_renames(results: &[(String, String, bool)]) -> Vec<RenameObject> {
 }
 
 /// Spawn a batch rename async task.
-pub async fn spawn_batch_rename(
-    app: &mut App,
-    renames: Vec<RenameObject>,
-    id: u32,
-    message: &str,
-) {
+pub async fn spawn_batch_rename(app: &mut App, renames: Vec<RenameObject>, id: u32, message: &str) {
     app.async_state.pending_task = PendingTask::Loading {
         id,
         message: message.to_string(),

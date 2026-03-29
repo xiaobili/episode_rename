@@ -1,7 +1,7 @@
-use reqwest::{Client, Response, StatusCode};
-use serde::de::DeserializeOwned;
 use crate::api::types::*;
 use crate::error::{AppError, Result};
+use reqwest::{Client, Response, StatusCode};
+use serde::de::DeserializeOwned;
 
 #[derive(Debug, Clone)]
 pub struct OpenListClient {
@@ -38,7 +38,10 @@ impl OpenListClient {
             let err_str = e.to_string();
             if err_str.contains("401") || err_str.contains("Unauthorized") {
                 AppError::TokenExpired
-            } else if err_str.contains("connection") || err_str.contains("timeout") || err_str.contains("resolve") {
+            } else if err_str.contains("connection")
+                || err_str.contains("timeout")
+                || err_str.contains("resolve")
+            {
                 AppError::Network(err_str)
             } else {
                 AppError::ApiError(format!("读取响应失败：{}", e))
@@ -48,7 +51,10 @@ impl OpenListClient {
         let v: serde_json::Value = serde_json::from_str(&text).unwrap_or_default();
         if let Some(code) = v.get("code").and_then(|c| c.as_i64()) {
             if code != 200 {
-                let msg = v.get("message").and_then(|m| m.as_str()).unwrap_or("未知错误");
+                let msg = v
+                    .get("message")
+                    .and_then(|m| m.as_str())
+                    .unwrap_or("未知错误");
                 // Check for 401 code in response body
                 if code == 401 {
                     return Err(AppError::TokenExpired);
@@ -56,8 +62,7 @@ impl OpenListClient {
                 return Err(AppError::ApiError(msg.to_string()));
             }
         }
-        serde_json::from_str(&text)
-            .map_err(|e| AppError::ApiError(format!("解析失败：{}", e)))
+        serde_json::from_str(&text).map_err(|e| AppError::ApiError(format!("解析失败：{}", e)))
     }
 
     pub async fn login(&self, username: &str, password: &str) -> Result<String> {
@@ -75,7 +80,11 @@ impl OpenListClient {
                 let err_str = e.to_string();
                 if err_str.contains("401") || err_str.contains("Unauthorized") {
                     AppError::TokenExpired
-                } else if err_str.contains("connection") || err_str.contains("timeout") || err_str.contains("resolve") || err_str.contains("dns") {
+                } else if err_str.contains("connection")
+                    || err_str.contains("timeout")
+                    || err_str.contains("resolve")
+                    || err_str.contains("dns")
+                {
                     AppError::Network(err_str)
                 } else {
                     AppError::Network(err_str)
@@ -86,7 +95,8 @@ impl OpenListClient {
         let v: serde_json::Value = self.handle_response::<serde_json::Value>(resp).await?;
 
         // Try to extract token from different possible locations
-        let token = v.get("data")
+        let token = v
+            .get("data")
             .and_then(|data| {
                 // Try data.token format
                 data.get("token").and_then(|t| t.as_str())
@@ -118,23 +128,23 @@ impl OpenListClient {
                 let err_str = e.to_string();
                 if err_str.contains("401") || err_str.contains("Unauthorized") {
                     AppError::TokenExpired
-                } else if err_str.contains("connection") || err_str.contains("timeout") || err_str.contains("resolve") || err_str.contains("dns") {
+                } else if err_str.contains("connection")
+                    || err_str.contains("timeout")
+                    || err_str.contains("resolve")
+                    || err_str.contains("dns")
+                {
                     AppError::Network(err_str)
                 } else {
                     AppError::Network(err_str)
                 }
             })?;
         let api: ApiResponse<serde_json::Value> = self.handle_response(resp).await?;
-        let content = api
-            .data
-            .and_then(|d| d.get("content").cloned());
+        let content = api.data.and_then(|d| d.get("content").cloned());
 
         // Handle null or missing content as empty array
         match content {
-            Some(value) if !value.is_null() => {
-                serde_json::from_value(value)
-                    .map_err(|e| AppError::ApiError(format!("解析失败：{}", e)))
-            }
+            Some(value) if !value.is_null() => serde_json::from_value(value)
+                .map_err(|e| AppError::ApiError(format!("解析失败：{}", e))),
             _ => Ok(Vec::new()),
         }
     }
@@ -155,7 +165,11 @@ impl OpenListClient {
                 let err_str = e.to_string();
                 if err_str.contains("401") || err_str.contains("Unauthorized") {
                     AppError::TokenExpired
-                } else if err_str.contains("connection") || err_str.contains("timeout") || err_str.contains("resolve") || err_str.contains("dns") {
+                } else if err_str.contains("connection")
+                    || err_str.contains("timeout")
+                    || err_str.contains("resolve")
+                    || err_str.contains("dns")
+                {
                     AppError::Network(err_str)
                 } else {
                     AppError::Network(err_str)
@@ -181,7 +195,11 @@ impl OpenListClient {
                 let err_str = e.to_string();
                 if err_str.contains("401") || err_str.contains("Unauthorized") {
                     AppError::TokenExpired
-                } else if err_str.contains("connection") || err_str.contains("timeout") || err_str.contains("resolve") || err_str.contains("dns") {
+                } else if err_str.contains("connection")
+                    || err_str.contains("timeout")
+                    || err_str.contains("resolve")
+                    || err_str.contains("dns")
+                {
                     AppError::Network(err_str)
                 } else {
                     AppError::Network(err_str)
@@ -203,7 +221,11 @@ impl OpenListClient {
                 let err_str = e.to_string();
                 if err_str.contains("401") || err_str.contains("Unauthorized") {
                     AppError::TokenExpired
-                } else if err_str.contains("connection") || err_str.contains("timeout") || err_str.contains("resolve") || err_str.contains("dns") {
+                } else if err_str.contains("connection")
+                    || err_str.contains("timeout")
+                    || err_str.contains("resolve")
+                    || err_str.contains("dns")
+                {
                     AppError::Network(err_str)
                 } else {
                     AppError::Network(err_str)

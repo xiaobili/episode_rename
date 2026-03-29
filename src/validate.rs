@@ -54,7 +54,10 @@ pub fn validate_input(input: &str, input_type: InputType) -> Result<()> {
 /// - D-06: Not a reserved name (Unix: "." ".."; Windows: CON, PRN, AUX, NUL, COM1-9, LPT1-9)
 /// - D-07: Not a duplicate of existing directory
 /// - D-08: No invalid characters (/ \ : * ? " < > |)
-pub fn validate_folder_name(name: &str, existing_dirs: &[crate::api::types::FileItem]) -> Option<String> {
+pub fn validate_folder_name(
+    name: &str,
+    existing_dirs: &[crate::api::types::FileItem],
+) -> Option<String> {
     // D-04: Empty check
     if name.is_empty() {
         return Some("文件夹名称不能为空".to_string());
@@ -68,11 +71,8 @@ pub fn validate_folder_name(name: &str, existing_dirs: &[crate::api::types::File
     // D-06: Reserved names check
     let reserved_unix = [".", ".."];
     let reserved_windows = [
-        "CON", "PRN", "AUX", "NUL",
-        "COM1", "COM2", "COM3", "COM4", "COM5",
-        "COM6", "COM7", "COM8", "COM9",
-        "LPT1", "LPT2", "LPT3", "LPT4", "LPT5",
-        "LPT6", "LPT7", "LPT8", "LPT9",
+        "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
+        "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
     ];
 
     if reserved_unix.contains(&name) {

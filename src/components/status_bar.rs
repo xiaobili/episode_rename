@@ -3,14 +3,14 @@
 //! Renders the top status bar showing the application title and current user
 //! authentication state. Uses state-slice signature per D-03.
 
+use super::style::COLOR_CYAN;
+use crate::state::AuthState;
 use ratatui::{
     style::Style,
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
     Frame,
 };
-use crate::state::AuthState;
-use super::style::COLOR_CYAN;
 
 /// Renders the status bar with authentication information.
 ///

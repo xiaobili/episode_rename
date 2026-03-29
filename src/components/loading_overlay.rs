@@ -39,26 +39,31 @@ pub fn render(frame: &mut Frame, async_state: &AsyncState) {
         .direction(Direction::Vertical)
         .margin(2)
         .constraints([
-            Constraint::Length(1),  // Spacer
-            Constraint::Length(3),  // Spinner and message
-            Constraint::Length(1),  // Spacer
-            Constraint::Length(3),  // Progress bar or dots
-            Constraint::Length(1),  // Spacer
+            Constraint::Length(1), // Spacer
+            Constraint::Length(3), // Spinner and message
+            Constraint::Length(1), // Spacer
+            Constraint::Length(3), // Progress bar or dots
+            Constraint::Length(1), // Spacer
         ])
         .split(area);
 
     // Get spinner character and message from pending task
     let spinner_char = async_state.pending_task.get_spinner_char();
-    let message = async_state.pending_task.get_message().unwrap_or("处理中...");
+    let message = async_state
+        .pending_task
+        .get_message()
+        .unwrap_or("处理中...");
 
     // Spinner and message row
     let spinner_text = format!("{} {}", spinner_char, message);
     let spinner = Paragraph::new(spinner_text)
         .style(Style::default().fg(COLOR_CYAN).add_modifier(Modifier::BOLD))
-        .block(Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(COLOR_CYAN))
-            .title("加载中"));
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(COLOR_CYAN))
+                .title("加载中"),
+        );
     frame.render_widget(spinner, popup[1]);
 
     // Progress bar or indeterminate dots
@@ -80,9 +85,11 @@ pub fn render(frame: &mut Frame, async_state: &AsyncState) {
         // Indeterminate progress - show dots
         let dots = Paragraph::new("...")
             .style(Style::default().fg(COLOR_YELLOW))
-            .block(Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(COLOR_YELLOW)));
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(COLOR_YELLOW)),
+            );
         frame.render_widget(dots, popup[3]);
     }
 }

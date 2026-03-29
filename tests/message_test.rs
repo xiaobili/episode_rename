@@ -2,10 +2,10 @@
 //! Tests for Message enum and domain message types.
 //! These tests validate message creation and variant handling.
 
-use openlist_tui::message::{Message, NavMsg, AuthMsg, RenameMsg, UiMsg, AsyncMsg, ErrorMsg};
+use openlist_tui::message::{AsyncMsg, AuthMsg, ErrorMsg, Message, NavMsg, RenameMsg, UiMsg};
 use openlist_tui::state::ErrorInfo;
-use openlist_tui::state::Screen;
 use openlist_tui::state::RenameMode;
+use openlist_tui::state::Screen;
 
 #[test]
 fn test_nav_select_next_message() {
@@ -46,7 +46,10 @@ fn test_rename_open_popup_message() {
 fn test_ui_set_screen_message() {
     // Test UiMsg::SetScreen(Screen::LoginScreen) message creation
     let msg: Message = UiMsg::SetScreen(Screen::LoginScreen).into();
-    assert!(matches!(msg, Message::Ui(UiMsg::SetScreen(Screen::LoginScreen))));
+    assert!(matches!(
+        msg,
+        Message::Ui(UiMsg::SetScreen(Screen::LoginScreen))
+    ));
 }
 
 #[test]
@@ -127,16 +130,28 @@ fn test_error_msg_dismiss_conversion() {
 fn test_rename_mode_selection_message() {
     // Test RenameMsg with RenameMode variants
     let msg_smart: Message = RenameMsg::SelectMode(RenameMode::Smart).into();
-    assert!(matches!(msg_smart, Message::Rename(RenameMsg::SelectMode(RenameMode::Smart))));
+    assert!(matches!(
+        msg_smart,
+        Message::Rename(RenameMsg::SelectMode(RenameMode::Smart))
+    ));
 
     let msg_manual: Message = RenameMsg::SelectMode(RenameMode::Manual).into();
-    assert!(matches!(msg_manual, Message::Rename(RenameMsg::SelectMode(RenameMode::Manual))));
+    assert!(matches!(
+        msg_manual,
+        Message::Rename(RenameMsg::SelectMode(RenameMode::Manual))
+    ));
 
     let msg_unified: Message = RenameMsg::SelectMode(RenameMode::Unified).into();
-    assert!(matches!(msg_unified, Message::Rename(RenameMsg::SelectMode(RenameMode::Unified))));
+    assert!(matches!(
+        msg_unified,
+        Message::Rename(RenameMsg::SelectMode(RenameMode::Unified))
+    ));
 
     let msg_regex: Message = RenameMsg::SelectMode(RenameMode::Regex).into();
-    assert!(matches!(msg_regex, Message::Rename(RenameMsg::SelectMode(RenameMode::Regex))));
+    assert!(matches!(
+        msg_regex,
+        Message::Rename(RenameMsg::SelectMode(RenameMode::Regex))
+    ));
 }
 
 #[test]
@@ -150,13 +165,18 @@ fn test_nav_enter_directory_message() {
 fn test_ui_progress_messages() {
     // Test UI progress-related messages
     let start_msg: Message = UiMsg::StartLoading("Loading directory...".to_string()).into();
-    assert!(matches!(start_msg, Message::Ui(UiMsg::StartLoading(ref s)) if s == "Loading directory..."));
+    assert!(
+        matches!(start_msg, Message::Ui(UiMsg::StartLoading(ref s)) if s == "Loading directory...")
+    );
 
     let stop_msg: Message = UiMsg::StopLoading.into();
     assert!(matches!(stop_msg, Message::Ui(UiMsg::StopLoading)));
 
     let progress_msg: Message = UiMsg::UpdateProgress(5, 10).into();
-    assert!(matches!(progress_msg, Message::Ui(UiMsg::UpdateProgress(5, 10))));
+    assert!(matches!(
+        progress_msg,
+        Message::Ui(UiMsg::UpdateProgress(5, 10))
+    ));
 
     let spinner_msg: Message = UiMsg::AdvanceSpinner.into();
     assert!(matches!(spinner_msg, Message::Ui(UiMsg::AdvanceSpinner)));
@@ -169,13 +189,19 @@ fn test_auth_login_flow_messages() {
     assert!(matches!(start, Message::Auth(AuthMsg::StartLogin)));
 
     let input_user: Message = AuthMsg::InputUsername('a').into();
-    assert!(matches!(input_user, Message::Auth(AuthMsg::InputUsername('a'))));
+    assert!(matches!(
+        input_user,
+        Message::Auth(AuthMsg::InputUsername('a'))
+    ));
 
     let toggle: Message = AuthMsg::ToggleLoginFocus.into();
     assert!(matches!(toggle, Message::Auth(AuthMsg::ToggleLoginFocus)));
 
     let input_pass: Message = AuthMsg::InputPassword('b').into();
-    assert!(matches!(input_pass, Message::Auth(AuthMsg::InputPassword('b'))));
+    assert!(matches!(
+        input_pass,
+        Message::Auth(AuthMsg::InputPassword('b'))
+    ));
 
     let submit: Message = AuthMsg::SubmitLogin.into();
     assert!(matches!(submit, Message::Auth(AuthMsg::SubmitLogin)));

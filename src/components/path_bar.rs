@@ -3,13 +3,9 @@
 //! Renders the path bar showing the current directory path and navigation hints.
 //! Uses state-slice signature per D-03.
 
-use ratatui::{
-    style::Style,
-    widgets::Paragraph,
-    Frame,
-};
-use crate::state::NavigationState;
 use super::style::COLOR_YELLOW;
+use crate::state::NavigationState;
+use ratatui::{style::Style, widgets::Paragraph, Frame};
 
 /// Renders the path bar with current navigation information.
 ///

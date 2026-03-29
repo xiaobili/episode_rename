@@ -1,7 +1,7 @@
-use openlist_tui::app::{App, Screen, Focus};
 use openlist_tui::api::types::FileItem;
-use openlist_tui::validate::validate_folder_name;
+use openlist_tui::app::{App, Focus, Screen};
 use openlist_tui::update::*;
+use openlist_tui::validate::validate_folder_name;
 
 // === FOLD-01: Keyboard shortcut tests ===
 
@@ -9,9 +9,11 @@ use openlist_tui::update::*;
 fn test_start_folder_rename_shortcut() {
     let mut app = App::new();
 
-    app.navigation.directories = vec![
-        FileItem { name: "Folder1".to_string(), is_dir: true, size: None },
-    ];
+    app.navigation.directories = vec![FileItem {
+        name: "Folder1".to_string(),
+        is_dir: true,
+        size: None,
+    }];
     app.navigation.focus = Focus::Directory;
     app.navigation.selected_index = 0;
     app.navigation.current_path = "/test".to_string();
@@ -27,10 +29,12 @@ fn test_start_folder_rename_shortcut() {
 fn test_start_folder_rename_wrong_focus() {
     let mut app = App::new();
 
-    app.navigation.directories = vec![
-        FileItem { name: "Folder1".to_string(), is_dir: true, size: None },
-    ];
-    app.navigation.focus = Focus::File;  // Wrong focus
+    app.navigation.directories = vec![FileItem {
+        name: "Folder1".to_string(),
+        is_dir: true,
+        size: None,
+    }];
+    app.navigation.focus = Focus::File; // Wrong focus
     app.navigation.selected_index = 0;
 
     start_folder_rename(&mut app);
@@ -75,7 +79,7 @@ fn test_folder_rename_input_max_length() {
     app.ui.screen = Screen::FolderRename;
     app.rename.folder.input = "a".repeat(255);
 
-    input_folder_rename_char(&mut app, 'b');  // Should be ignored
+    input_folder_rename_char(&mut app, 'b'); // Should be ignored
 
     assert_eq!(app.rename.folder.input.len(), 255);
 }
@@ -163,8 +167,17 @@ fn test_validate_reserved_names() {
 fn test_validate_invalid_chars() {
     let existing = vec![];
 
-    let invalid_names = ["test/file", "test\\file", "test:file", "test*file",
-                         "test?file", "test\"file", "test<file", "test>file", "test|file"];
+    let invalid_names = [
+        "test/file",
+        "test\\file",
+        "test:file",
+        "test*file",
+        "test?file",
+        "test\"file",
+        "test<file",
+        "test>file",
+        "test|file",
+    ];
 
     for name in invalid_names {
         let result = validate_folder_name(name, &existing);
@@ -174,9 +187,11 @@ fn test_validate_invalid_chars() {
 
 #[test]
 fn test_validate_duplicate_names() {
-    let existing = vec![
-        FileItem { name: "ExistingFolder".to_string(), is_dir: true, size: None },
-    ];
+    let existing = vec![FileItem {
+        name: "ExistingFolder".to_string(),
+        is_dir: true,
+        size: None,
+    }];
 
     let result = validate_folder_name("ExistingFolder", &existing);
     assert!(result.is_some());
@@ -227,13 +242,16 @@ fn test_submit_folder_rename_validation_error() {
         is_dir: true,
         size: None,
     });
-    app.rename.folder.input = "".to_string();  // Empty name
+    app.rename.folder.input = "".to_string(); // Empty name
 
     submit_folder_rename(&mut app);
 
     // Should have validation error
     assert!(app.rename.folder.validation_error.is_some());
-    assert_eq!(app.rename.folder.validation_error.unwrap(), "文件夹名称不能为空");
+    assert_eq!(
+        app.rename.folder.validation_error.unwrap(),
+        "文件夹名称不能为空"
+    );
 }
 
 // === State transition tests ===
@@ -248,9 +266,11 @@ fn test_folder_rename_state_transitions() {
     assert!(app.rename.folder.validation_error.is_none());
 
     // Setup
-    app.navigation.directories = vec![
-        FileItem { name: "TestFolder".to_string(), is_dir: true, size: None },
-    ];
+    app.navigation.directories = vec![FileItem {
+        name: "TestFolder".to_string(),
+        is_dir: true,
+        size: None,
+    }];
     app.navigation.focus = Focus::Directory;
     app.navigation.selected_index = 0;
     app.navigation.current_path = "/test".to_string();
@@ -279,12 +299,20 @@ fn test_folder_rename_index_with_parent_entry() {
 
     // When current_path != "/", there's a ".." entry at index 0
     app.navigation.directories = vec![
-        FileItem { name: "Folder1".to_string(), is_dir: true, size: None },
-        FileItem { name: "Folder2".to_string(), is_dir: true, size: None },
+        FileItem {
+            name: "Folder1".to_string(),
+            is_dir: true,
+            size: None,
+        },
+        FileItem {
+            name: "Folder2".to_string(),
+            is_dir: true,
+            size: None,
+        },
     ];
     app.navigation.focus = Focus::Directory;
     app.navigation.current_path = "/parent".to_string();
-    app.navigation.selected_index = 1;  // Points to ".." entry, should map to Folder1
+    app.navigation.selected_index = 1; // Points to ".." entry, should map to Folder1
 
     start_folder_rename(&mut app);
 
@@ -298,12 +326,20 @@ fn test_folder_rename_index_root_path() {
 
     // When current_path == "/", no ".." entry
     app.navigation.directories = vec![
-        FileItem { name: "Folder1".to_string(), is_dir: true, size: None },
-        FileItem { name: "Folder2".to_string(), is_dir: true, size: None },
+        FileItem {
+            name: "Folder1".to_string(),
+            is_dir: true,
+            size: None,
+        },
+        FileItem {
+            name: "Folder2".to_string(),
+            is_dir: true,
+            size: None,
+        },
     ];
     app.navigation.focus = Focus::Directory;
     app.navigation.current_path = "/".to_string();
-    app.navigation.selected_index = 1;  // Directly points to Folder2
+    app.navigation.selected_index = 1; // Directly points to Folder2
 
     start_folder_rename(&mut app);
 
@@ -317,16 +353,18 @@ fn test_folder_rename_index_root_path() {
 fn test_submit_folder_rename_validates_duplicate() {
     let mut app = App::new();
 
-    app.navigation.directories = vec![
-        FileItem { name: "ExistingFolder".to_string(), is_dir: true, size: None },
-    ];
+    app.navigation.directories = vec![FileItem {
+        name: "ExistingFolder".to_string(),
+        is_dir: true,
+        size: None,
+    }];
     app.ui.screen = Screen::FolderRename;
     app.rename.folder.target = Some(FileItem {
         name: "OldFolder".to_string(),
         is_dir: true,
         size: None,
     });
-    app.rename.folder.input = "ExistingFolder".to_string();  // Duplicate name
+    app.rename.folder.input = "ExistingFolder".to_string(); // Duplicate name
 
     submit_folder_rename(&mut app);
 
@@ -345,7 +383,7 @@ fn test_submit_folder_rename_validates_reserved() {
         is_dir: true,
         size: None,
     });
-    app.rename.folder.input = "CON".to_string();  // Reserved name
+    app.rename.folder.input = "CON".to_string(); // Reserved name
 
     submit_folder_rename(&mut app);
 
@@ -382,7 +420,7 @@ fn test_folder_rename_validation_error_display() {
         is_dir: true,
         size: None,
     });
-    app.rename.folder.input = "a/b".to_string();  // Invalid character
+    app.rename.folder.input = "a/b".to_string(); // Invalid character
     app.rename.folder.validation_error = None;
 
     submit_folder_rename(&mut app);
@@ -403,7 +441,7 @@ fn test_folder_rename_preserves_target_on_validation_error() {
         size: None,
     };
     app.rename.folder.target = Some(target.clone());
-    app.rename.folder.input = "".to_string();  // Empty - validation error
+    app.rename.folder.input = "".to_string(); // Empty - validation error
 
     submit_folder_rename(&mut app);
 

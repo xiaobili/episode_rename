@@ -1,5 +1,5 @@
-use openlist_tui::app::{App, Screen, Focus};
 use openlist_tui::api::types::FileItem;
+use openlist_tui::app::{App, Focus, Screen};
 use openlist_tui::update::*;
 
 #[test]
@@ -8,8 +8,16 @@ fn test_start_single_rename_initializes_state() {
 
     // Add some mock files and set focus to file list
     app.navigation.files = vec![
-        FileItem { name: "Show.S01E01.mkv".to_string(), is_dir: false, size: Some(1000) },
-        FileItem { name: "Show.S01E02.mkv".to_string(), is_dir: false, size: Some(1000) },
+        FileItem {
+            name: "Show.S01E01.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
+        FileItem {
+            name: "Show.S01E02.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
     ];
     app.navigation.focus = Focus::File;
     app.navigation.selected_index = 0;
@@ -25,9 +33,11 @@ fn test_start_single_rename_initializes_state() {
 fn test_start_single_rename_wrong_focus() {
     let mut app = App::new();
 
-    app.navigation.files = vec![
-        FileItem { name: "Show.S01E01.mkv".to_string(), is_dir: false, size: Some(1000) },
-    ];
+    app.navigation.files = vec![FileItem {
+        name: "Show.S01E01.mkv".to_string(),
+        is_dir: false,
+        size: Some(1000),
+    }];
     app.navigation.focus = Focus::Directory;
     app.navigation.selected_index = 0;
 
@@ -141,9 +151,11 @@ fn test_single_rename_state_transitions() {
     assert!(app.rename.single.target.is_none());
 
     // Setup for single rename
-    app.navigation.files = vec![
-        FileItem { name: "Episode.01.mkv".to_string(), is_dir: false, size: Some(1000) },
-    ];
+    app.navigation.files = vec![FileItem {
+        name: "Episode.01.mkv".to_string(),
+        is_dir: false,
+        size: Some(1000),
+    }];
     app.navigation.focus = Focus::File;
     app.navigation.selected_index = 0;
 
@@ -187,9 +199,21 @@ fn test_single_rename_selected_index() {
     let mut app = App::new();
 
     app.navigation.files = vec![
-        FileItem { name: "File1.mkv".to_string(), is_dir: false, size: Some(1000) },
-        FileItem { name: "File2.mkv".to_string(), is_dir: false, size: Some(1000) },
-        FileItem { name: "File3.mkv".to_string(), is_dir: false, size: Some(1000) },
+        FileItem {
+            name: "File1.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
+        FileItem {
+            name: "File2.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
+        FileItem {
+            name: "File3.mkv".to_string(),
+            is_dir: false,
+            size: Some(1000),
+        },
     ];
     app.navigation.focus = Focus::File;
 
@@ -209,9 +233,11 @@ fn test_single_rename_selected_index() {
 fn test_single_rename_preserves_original() {
     let mut app = App::new();
 
-    app.navigation.files = vec![
-        FileItem { name: "Original.Name.mkv".to_string(), is_dir: false, size: Some(1000) },
-    ];
+    app.navigation.files = vec![FileItem {
+        name: "Original.Name.mkv".to_string(),
+        is_dir: false,
+        size: Some(1000),
+    }];
     app.navigation.focus = Focus::File;
     app.navigation.selected_index = 0;
 
@@ -224,5 +250,8 @@ fn test_single_rename_preserves_original() {
     app.rename.single.input = "Modified.Name.mkv".to_string();
 
     // Target should still reference original
-    assert_eq!(app.rename.single.target.as_ref().unwrap().name, "Original.Name.mkv");
+    assert_eq!(
+        app.rename.single.target.as_ref().unwrap().name,
+        "Original.Name.mkv"
+    );
 }

@@ -71,19 +71,17 @@ pub fn render(frame: &mut Frame, area: Rect, nav: &NavigationState, config: &Con
         .enumerate()
         .map(|(i, f)| {
             let actual_index = i + scroll_offset;
-            let prefix =
-                if actual_index == nav.selected_index && matches!(nav.focus, Focus::File) {
-                    "> "
-                } else {
-                    "  "
-                };
+            let prefix = if actual_index == nav.selected_index && matches!(nav.focus, Focus::File) {
+                "> "
+            } else {
+                "  "
+            };
             let size = format_size(f.size.unwrap_or(0));
             ListItem::new(format!("{}{} {} ({})", prefix, file_icon, f.name, size))
         })
         .collect();
 
-    let list = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title("文件"));
+    let list = List::new(items).block(Block::default().borders(Borders::ALL).title("文件"));
     frame.render_widget(list, area);
 }
 

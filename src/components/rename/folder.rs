@@ -44,13 +44,13 @@ pub fn render(frame: &mut Frame, rename: &RenameState) {
         .direction(Direction::Vertical)
         .margin(2)
         .constraints([
-            Constraint::Length(3),  // Title
-            Constraint::Length(1),  // Spacer
-            Constraint::Length(3),  // Current folder name
-            Constraint::Length(1),  // Spacer
-            Constraint::Length(3),  // Input field
-            Constraint::Length(2),  // Validation error (or spacer)
-            Constraint::Length(2),  // Help text
+            Constraint::Length(3), // Title
+            Constraint::Length(1), // Spacer
+            Constraint::Length(3), // Current folder name
+            Constraint::Length(1), // Spacer
+            Constraint::Length(3), // Input field
+            Constraint::Length(2), // Validation error (or spacer)
+            Constraint::Length(2), // Help text
         ])
         .split(area);
 
@@ -58,31 +58,41 @@ pub fn render(frame: &mut Frame, rename: &RenameState) {
 
     // Title - D-09: "文件夹重命名"
     let title = Paragraph::new("文件夹重命名")
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
-        .block(Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Cyan)));
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Cyan)),
+        );
     frame.render_widget(title, popup[0]);
 
     // Current folder name - D-11: "原文件夹名：{name}"
-    let current_folder = folder.target.as_ref()
+    let current_folder = folder
+        .target
+        .as_ref()
         .map(|f| f.name.as_str())
         .unwrap_or("无文件夹");
     let folder_label = Paragraph::new(format!("原文件夹名：{}", current_folder))
         .style(Style::default().fg(Color::White))
-        .block(Block::default()
-            .borders(Borders::ALL)
-            .title("当前文件夹"));
+        .block(Block::default().borders(Borders::ALL).title("当前文件夹"));
     frame.render_widget(folder_label, popup[2]);
 
     // Input field - D-12: "新文件夹名"
-    let input_style = Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD);
+    let input_style = Style::default()
+        .fg(Color::Yellow)
+        .add_modifier(Modifier::BOLD);
     let input = Paragraph::new(folder.input.as_str())
         .style(input_style)
-        .block(Block::default()
-            .borders(Borders::ALL)
-            .title("新文件夹名")
-            .border_style(Style::default().fg(Color::Green)));
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("新文件夹名")
+                .border_style(Style::default().fg(Color::Green)),
+        );
     frame.render_widget(input, popup[4]);
 
     // Validation error (inline) - D-14, D-16
